@@ -1,0 +1,549 @@
+/* ===== Custom Properties ===== */
+:root {
+  --bg-primary: #0f1117;
+  --bg-card: #1a1d27;
+  --bg-input: #252836;
+  --bg-hover: #2a2d3a;
+  --text-primary: #e8e8ec;
+  --text-secondary: #9a9ab0;
+  --text-muted: #6b6b80;
+  --accent: #00d4aa;
+  --accent-dim: rgba(0, 212, 170, 0.15);
+  --border: #2a2d3a;
+  --error: #ff5555;
+  --warning: #f0a830;
+  --warning-bg: rgba(240, 168, 48, 0.12);
+  --cancelled: #ff4444;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --max-width: 480px;
+
+  /* Transport colors */
+  --metro-red: #e4002b;
+  --metro-green: #00a651;
+  --metro-blue: #0078be;
+  --bus-red: #d71d24;
+  --bus-blue: #0078be;
+  --train: #ec6a37;
+  --tram: #b5b340;
+  --ferry: #00bce4;
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+ul {
+  list-style: none;
+}
+
+/* ===== App Container ===== */
+#app {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 16px;
+  min-height: 100vh;
+}
+
+/* ===== Utility ===== */
+.hidden {
+  display: none !important;
+}
+
+/* ===== Header ===== */
+#header {
+  text-align: center;
+  padding: 12px 0 16px;
+}
+
+#header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+
+#station-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ===== Search ===== */
+#search-section {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+#search-wrapper {
+  display: flex;
+  gap: 8px;
+}
+
+#search-input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+#search-input::placeholder {
+  color: var(--text-muted);
+}
+
+#search-input:focus {
+  border-color: var(--accent);
+}
+
+#nearby-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+#nearby-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+#nearby-btn:active {
+  background: var(--accent-dim);
+}
+
+/* Search Results Dropdown */
+#search-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+#search-results li {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+#search-results li:last-child {
+  border-bottom: none;
+}
+
+#search-results li:hover,
+#search-results li.highlighted {
+  background: var(--bg-hover);
+}
+
+#search-results li .station-name {
+  color: var(--text-primary);
+}
+
+#search-results li .station-area {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-left: 6px;
+}
+
+/* ===== Recent Stations ===== */
+#recent-section {
+  margin-bottom: 12px;
+}
+
+#recent-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: none;
+}
+
+#recent-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.recent-chip {
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.recent-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.recent-chip.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ===== Controls ===== */
+#controls-section {
+  margin-bottom: 12px;
+}
+
+#filter-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0;
+  margin-bottom: 10px;
+  scrollbar-width: none;
+}
+
+#filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip {
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-chip:hover {
+  border-color: var(--text-secondary);
+}
+
+.filter-chip.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+#time-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#time-picker label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+#time-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  outline: none;
+}
+
+#time-input:focus {
+  border-color: var(--accent);
+}
+
+#time-now-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+#time-now-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ===== Deviations ===== */
+#deviations-section {
+  margin-bottom: 12px;
+}
+
+#deviations-list {
+  background: var(--warning-bg);
+  border: 1px solid rgba(240, 168, 48, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.deviation-item {
+  display: flex;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 0.82rem;
+  color: var(--warning);
+  line-height: 1.4;
+}
+
+.deviation-item + .deviation-item {
+  border-top: 1px solid rgba(240, 168, 48, 0.15);
+}
+
+.deviation-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ===== Departures ===== */
+#departures-section {
+  min-height: 200px;
+}
+
+/* Loading */
+#loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 0;
+  color: var(--text-muted);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error */
+#error-message {
+  background: rgba(255, 85, 85, 0.1);
+  border: 1px solid rgba(255, 85, 85, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--error);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* Empty State */
+#empty-state {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Departure List */
+#departure-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.departure-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+
+.departure-row:first-child {
+  border-radius: var(--radius) var(--radius) var(--radius-sm) var(--radius-sm);
+}
+
+.departure-row:last-child {
+  border-radius: var(--radius-sm) var(--radius-sm) var(--radius) var(--radius);
+}
+
+.departure-row:only-child {
+  border-radius: var(--radius);
+}
+
+.departure-row.cancelled {
+  opacity: 0.6;
+}
+
+.departure-row.cancelled .departure-destination,
+.departure-row.cancelled .departure-time {
+  text-decoration: line-through;
+}
+
+/* Line Badge */
+.line-badge {
+  flex-shrink: 0;
+  min-width: 40px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+/* Metro line colors */
+.line-badge.metro-red { background: var(--metro-red); }
+.line-badge.metro-green { background: var(--metro-green); }
+.line-badge.metro-blue { background: var(--metro-blue); }
+
+/* Transport type colors */
+.line-badge.bus { background: var(--bus-red); }
+.line-badge.bus-blue { background: var(--bus-blue); }
+.line-badge.train { background: var(--train); }
+.line-badge.tram { background: var(--tram); }
+.line-badge.ferry { background: var(--ferry); }
+
+/* Departure Info */
+.departure-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.departure-destination {
+  font-size: 0.9rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.departure-platform {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Departure Time */
+.departure-time-col {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.departure-time {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.departure-time.at-stop {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.departure-abs-time {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Cancelled label */
+.cancelled-label {
+  font-size: 0.7rem;
+  color: var(--cancelled);
+  font-weight: 600;
+  text-decoration: none !important;
+}
+
+/* ===== Footer ===== */
+#footer {
+  margin-top: 24px;
+  padding: 16px 0;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+
+#refresh-info {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.attribution {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.attribution a {
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+/* ===== Color Scheme ===== */
+@media (prefers-color-scheme: light) {
+  /* Force dark theme regardless of system preference */
+  :root {
+    color-scheme: dark;
+  }
+}

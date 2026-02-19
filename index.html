@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SL Easy — Stockholm Departures</title>
+  <meta name="description" content="Real-time Stockholm public transport departures">
+  <meta name="theme-color" content="#0f1117">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="icons/favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header id="header">
+      <h1>SL Easy</h1>
+      <p id="station-subtitle" class="hidden"></p>
+    </header>
+
+    <!-- Search -->
+    <section id="search-section">
+      <div id="search-wrapper">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="Search station..."
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <button id="nearby-btn" title="Find nearby stations" aria-label="Find nearby stations">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+          </svg>
+        </button>
+      </div>
+      <ul id="search-results" class="hidden"></ul>
+    </section>
+
+    <!-- Recent stations -->
+    <section id="recent-section" class="hidden">
+      <div id="recent-chips"></div>
+    </section>
+
+    <!-- Controls -->
+    <section id="controls-section" class="hidden">
+      <div id="filter-chips">
+        <button class="filter-chip active" data-filter="all">All</button>
+        <button class="filter-chip" data-filter="METRO">Metro</button>
+        <button class="filter-chip" data-filter="BUS">Bus</button>
+        <button class="filter-chip" data-filter="TRAIN">Train</button>
+        <button class="filter-chip" data-filter="TRAM">Tram</button>
+        <button class="filter-chip" data-filter="FERRY">Ferry</button>
+      </div>
+      <div id="time-picker">
+        <label for="time-input">Depart at:</label>
+        <input type="time" id="time-input">
+        <button id="time-now-btn" class="active">Now</button>
+      </div>
+    </section>
+
+    <!-- Deviations -->
+    <section id="deviations-section" class="hidden">
+      <div id="deviations-list"></div>
+    </section>
+
+    <!-- Departures -->
+    <section id="departures-section">
+      <div id="loading" class="hidden">
+        <div class="spinner"></div>
+        <p>Loading departures...</p>
+      </div>
+      <div id="error-message" class="hidden"></div>
+      <div id="empty-state">
+        <p>Search for a station to see departures</p>
+      </div>
+      <ul id="departure-list" class="hidden"></ul>
+    </section>
+
+    <!-- Footer -->
+    <footer id="footer" class="hidden">
+      <p id="refresh-info">Auto-refresh in <span id="refresh-countdown">30</span>s</p>
+      <p class="attribution">
+        Data from <a href="https://www.trafiklab.se" target="_blank" rel="noopener">Trafiklab</a> / SL, licensed under
+        <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener">CC BY 2.0</a>
+      </p>
+    </footer>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
