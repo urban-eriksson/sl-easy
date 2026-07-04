@@ -1,4 +1,4 @@
-## SL Easy
+## SL Easy - v3
 
 Real-time Stockholm public transport departures. A mobile-first PWA with no backend — uses SL's public APIs directly.
 
