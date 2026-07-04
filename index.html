@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>SL Easy — Stockholm Departures</title>
   <meta name="description" content="Real-time Stockholm public transport departures">
   <meta name="theme-color" content="#0f1117">
@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+  <div id="ptr-indicator"><div class="ptr-spinner"></div></div>
   <div id="app">
     <!-- Header -->
     <header id="header">
@@ -57,11 +58,13 @@
         <button class="filter-chip" data-filter="TRAM">Tram</button>
         <button class="filter-chip" data-filter="FERRY">Ferry</button>
       </div>
+      <div id="active-filter-bar" class="hidden"></div>
       <div id="time-picker">
         <label for="time-input">Depart at:</label>
         <input type="time" id="time-input">
         <button id="time-now-btn" class="active">Now</button>
       </div>
+      <p id="filter-hint" class="hidden">Tip: tap a line number or destination to filter the list</p>
     </section>
 
     <!-- Deviations -->

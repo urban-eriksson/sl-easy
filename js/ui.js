@@ -13,6 +13,8 @@ const els = {
   recentSection: $('recent-section'),
   recentChips: $('recent-chips'),
   controlsSection: $('controls-section'),
+  activeFilterBar: $('active-filter-bar'),
+  filterHint: $('filter-hint'),
   deviationsSection: $('deviations-section'),
   deviationsList: $('deviations-list'),
   loading: $('loading'),
@@ -176,19 +178,34 @@ export function showEmpty(message = 'No departures found') {
  * Render departure list.
  * @param {Array} departures - Flat array of departure objects from all transport modes.
  * @param {string} filter - Transport filter ("all" or mode name).
+ * @param {Object} fineFilter - { lines: [{ mode, designation }], destinations: [string] }.
  */
-export function renderDepartures(departures, filter = 'all') {
+export function renderDepartures(departures, filter = 'all', fineFilter = { lines: [], destinations: [] }) {
   toggle(els.loading, false);
   toggle(els.errorMessage, false);
   toggle(els.emptyState, false);
 
   let filtered = departures;
   if (filter !== 'all') {
-    filtered = departures.filter((d) => d.line.transport_mode === filter);
+    filtered = filtered.filter((d) => d.line.transport_mode === filter);
+  }
+  if (fineFilter.lines.length > 0) {
+    filtered = filtered.filter((d) =>
+      fineFilter.lines.some(
+        (l) => l.mode === d.line.transport_mode && l.designation === String(d.line.designation)
+      )
+    );
+  }
+  if (fineFilter.destinations.length > 0) {
+    filtered = filtered.filter((d) => fineFilter.destinations.includes(d.destination));
   }
 
   if (filtered.length === 0) {
-    showEmpty(filter !== 'all' ? `No ${filter.toLowerCase()} departures` : 'No departures found');
+    if (fineFilter.lines.length > 0 || fineFilter.destinations.length > 0) {
+      showEmpty('No departures match the filter');
+    } else {
+      showEmpty(filter !== 'all' ? `No ${filter.toLowerCase()} departures` : 'No departures found');
+    }
     return;
   }
 
@@ -213,18 +230,22 @@ export function renderDepartures(departures, filter = 'all') {
       const absTime = formatTime(expected);
       const platform = dep.stop_point?.designation;
       const deviationMsg = dep.deviations?.[0]?.message;
+      const lineSelected = fineFilter.lines.some(
+        (l) => l.mode === mode && l.designation === String(lineNum)
+      );
+      const destSelected = fineFilter.destinations.includes(dest);
 
       return `<li class="departure-row${isCancelled ? ' cancelled' : ''}" data-expected="${expected}">
-        <span class="line-badge ${badgeClass}">${escapeHtml(lineNum)}</span>
+        <button class="line-badge ${badgeClass}${lineSelected ? ' selected' : ''}" data-mode="${mode}" title="Filter on line ${escapeHtml(lineNum)}">${escapeHtml(lineNum)}</button>
         <div class="departure-info">
-          <div class="departure-destination">${escapeHtml(dest)}</div>
+          <button class="departure-destination${destSelected ? ' selected' : ''}" title="Filter on destination">${escapeHtml(dest)}</button>
           ${platform ? `<div class="departure-platform">Platform ${escapeHtml(platform)}</div>` : ''}
           ${isCancelled && deviationMsg ? `<div class="cancelled-label">${escapeHtml(deviationMsg)}</div>` : ''}
           ${isCancelled && !deviationMsg ? '<div class="cancelled-label">Cancelled</div>' : ''}
         </div>
         <div class="departure-time-col">
-          <div class="departure-time${isAtStop ? ' at-stop' : ''}">${countdown}</div>
-          <div class="departure-abs-time">${absTime}</div>
+          <div class="departure-clock">${absTime}</div>
+          <div class="departure-countdown${isAtStop ? ' at-stop' : ''}">${countdown}</div>
         </div>
       </li>`;
     })
@@ -235,6 +256,43 @@ export function renderDepartures(departures, filter = 'all') {
 }
 
 /**
+ * Render the active fine-filter bar (selected lines/destinations with remove buttons).
+ * @param {Object} fineFilter - { lines: [{ mode, designation }], destinations: [string] }.
+ */
+export function renderFilterBar(fineFilter) {
+  const chips = [];
+  for (const l of fineFilter.lines) {
+    chips.push(`<button class="filter-bar-chip" data-type="line" data-mode="${l.mode}" data-line="${escapeHtml(l.designation)}">
+      <span class="line-badge ${getLineBadgeClass(l.mode, l.designation)}">${escapeHtml(l.designation)}</span>
+      <span class="chip-x">&times;</span>
+    </button>`);
+  }
+  for (const dest of fineFilter.destinations) {
+    chips.push(`<button class="filter-bar-chip" data-type="dest">
+      <span class="chip-text">${escapeHtml(dest)}</span>
+      <span class="chip-x">&times;</span>
+    </button>`);
+  }
+
+  if (chips.length === 0) {
+    els.activeFilterBar.innerHTML = '';
+    toggle(els.activeFilterBar, false);
+    return;
+  }
+
+  els.activeFilterBar.innerHTML =
+    `<span class="filter-bar-label">Showing:</span>${chips.join('')}<button id="clear-filter-btn">Clear all</button>`;
+  toggle(els.activeFilterBar, true);
+}
+
+/**
+ * Show or hide the tap-to-filter hint.
+ */
+export function showFilterHint(show) {
+  toggle(els.filterHint, show);
+}
+
+/**
  * Update countdown times in existing departure rows without full re-render.
  */
 export function updateCountdowns() {
@@ -242,7 +300,7 @@ export function updateCountdowns() {
     const expected = row.dataset.expected;
     if (!expected) return;
     const minutes = minutesUntil(expected);
-    const timeEl = row.querySelector('.departure-time');
+    const timeEl = row.querySelector('.departure-countdown');
     if (!timeEl || row.classList.contains('cancelled')) return;
     const isAtStop = timeEl.classList.contains('at-stop');
     if (!isAtStop) {

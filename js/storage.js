@@ -4,6 +4,7 @@
 
 const RECENT_KEY = 'sl-easy-recent';
 const PREFS_KEY = 'sl-easy-prefs';
+const FILTERS_KEY = 'sl-easy-station-filters';
 const MAX_RECENT = 5;
 
 /**
@@ -44,4 +45,39 @@ export function getPreferences() {
 export function savePreferences(prefs) {
   const current = getPreferences();
   localStorage.setItem(PREFS_KEY, JSON.stringify({ ...current, ...prefs }));
+}
+
+/**
+ * Get the saved fine-grained filter for a station.
+ * Returns { lines: [{ mode, designation }], destinations: [string] }.
+ */
+export function getStationFilter(siteId) {
+  try {
+    const all = JSON.parse(localStorage.getItem(FILTERS_KEY)) || {};
+    const f = all[siteId] || {};
+    return {
+      lines: Array.isArray(f.lines) ? f.lines : [],
+      destinations: Array.isArray(f.destinations) ? f.destinations : [],
+    };
+  } catch {
+    return { lines: [], destinations: [] };
+  }
+}
+
+/**
+ * Save the fine-grained filter for a station (removed entirely when empty).
+ */
+export function saveStationFilter(siteId, filter) {
+  let all = {};
+  try {
+    all = JSON.parse(localStorage.getItem(FILTERS_KEY)) || {};
+  } catch {
+    // corrupt storage: start fresh
+  }
+  if (filter.lines.length === 0 && filter.destinations.length === 0) {
+    delete all[siteId];
+  } else {
+    all[siteId] = filter;
+  }
+  localStorage.setItem(FILTERS_KEY, JSON.stringify(all));
 }

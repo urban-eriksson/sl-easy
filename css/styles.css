@@ -36,6 +36,11 @@
   padding: 0;
 }
 
+html {
+  /* Disable native pull-to-refresh so the in-app gesture can take over */
+  overscroll-behavior-y: none;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: var(--bg-primary);
@@ -43,6 +48,13 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;
+}
+
+button {
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 a {
@@ -62,7 +74,8 @@ ul {
 #app {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 16px;
+  padding: calc(12px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+    calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
   min-height: 100vh;
 }
 
@@ -208,8 +221,8 @@ ul {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 20px;
-  padding: 6px 14px;
-  font-size: 0.8rem;
+  padding: 9px 16px;
+  font-size: 0.9rem;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s;
@@ -250,8 +263,8 @@ ul {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 20px;
-  padding: 5px 14px;
-  font-size: 0.8rem;
+  padding: 9px 16px;
+  font-size: 0.9rem;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s;
@@ -282,9 +295,9 @@ ul {
   background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 5px 10px;
+  padding: 8px 12px;
   color: var(--text-primary);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   outline: none;
 }
 
@@ -296,8 +309,8 @@ ul {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 5px 12px;
-  font-size: 0.8rem;
+  padding: 8px 14px;
+  font-size: 0.9rem;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s;
@@ -307,6 +320,118 @@ ul {
   background: var(--accent-dim);
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* ===== Active Fine-Filter Bar ===== */
+#active-filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.filter-bar-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.filter-bar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  padding: 4px 10px 4px 6px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.filter-bar-chip .line-badge {
+  min-width: 32px;
+  height: 22px;
+  font-size: 0.75rem;
+  padding: 0 6px;
+  border-radius: 4px;
+  cursor: inherit;
+}
+
+.filter-bar-chip .chip-text {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-left: 4px;
+}
+
+.filter-bar-chip .chip-x {
+  color: var(--accent);
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+#clear-filter-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 6px 4px;
+  margin-left: auto;
+}
+
+/* ===== Filter Hint ===== */
+#filter-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* ===== Pull-to-Refresh Indicator ===== */
+#ptr-indicator {
+  position: fixed;
+  top: -48px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+#ptr-indicator.visible {
+  opacity: 1;
+}
+
+.ptr-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--text-muted);
+  border-radius: 50%;
+  transition: border-top-color 0.15s;
+}
+
+#ptr-indicator.ready .ptr-spinner {
+  border-top-color: var(--accent);
+}
+
+#ptr-indicator.refreshing .ptr-spinner {
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
 }
 
 /* ===== Deviations ===== */
@@ -396,11 +521,15 @@ ul {
 .departure-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 13px 14px;
   background: var(--bg-card);
   border-radius: var(--radius-sm);
   transition: background 0.15s;
+}
+
+.departure-row:active {
+  background: var(--bg-hover);
 }
 
 .departure-row:first-child {
@@ -420,24 +549,30 @@ ul {
 }
 
 .departure-row.cancelled .departure-destination,
-.departure-row.cancelled .departure-time {
+.departure-row.cancelled .departure-clock {
   text-decoration: line-through;
 }
 
-/* Line Badge */
+/* Line Badge (tappable: toggles line filter) */
 .line-badge {
   flex-shrink: 0;
-  min-width: 40px;
-  height: 28px;
+  min-width: 46px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: none;
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: #fff;
-  padding: 0 6px;
+  padding: 0 8px;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.line-badge.selected {
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--accent);
 }
 
 /* Metro line colors */
@@ -458,40 +593,61 @@ ul {
   min-width: 0;
 }
 
+/* Destination (tappable: toggles destination filter) */
 .departure-destination {
-  font-size: 0.9rem;
+  display: block;
+  max-width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  color: var(--text-primary);
+  font-size: 1rem;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.departure-destination.selected {
+  color: var(--accent);
 }
 
 .departure-platform {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   color: var(--text-muted);
 }
 
-/* Departure Time */
+/* Departure Time: clock time is primary, countdown secondary */
 .departure-time-col {
   flex-shrink: 0;
   text-align: right;
 }
 
-.departure-time {
-  font-size: 1rem;
-  font-weight: 600;
+.departure-clock {
+  font-size: 1.3rem;
+  font-weight: 700;
   color: var(--accent);
+  line-height: 1.2;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.departure-countdown {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 
-.departure-time.at-stop {
+.departure-countdown.at-stop {
   color: var(--accent);
   font-weight: 700;
+  animation: pulse 1.2s ease-in-out infinite;
 }
 
-.departure-abs-time {
-  font-size: 0.72rem;
-  color: var(--text-muted);
+@keyframes pulse {
+  50% { opacity: 0.5; }
 }
 
 /* Cancelled label */

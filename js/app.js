@@ -3,7 +3,14 @@
  */
 
 import { searchStations, fetchDepartures, fetchDeviations, getAllSites } from './api.js';
-import { getRecentStations, addRecentStation, getPreferences, savePreferences } from './storage.js';
+import {
+  getRecentStations,
+  addRecentStation,
+  getPreferences,
+  savePreferences,
+  getStationFilter,
+  saveStationFilter,
+} from './storage.js';
 import {
   renderStationName,
   renderSearchResults,
@@ -15,6 +22,8 @@ import {
   showError,
   showEmpty,
   renderDepartures,
+  renderFilterBar,
+  showFilterHint,
   updateCountdowns,
   updateRefreshCountdown,
 } from './ui.js';
@@ -24,6 +33,7 @@ import { debounce, haversine, computeForecast } from './utils.js';
 let currentStation = null;   // { id, name }
 let departures = [];         // flat array of all departures
 let activeFilter = 'all';    // transport filter
+let fineFilter = { lines: [], destinations: [] }; // per-station line/destination filter
 let useNowTime = true;       // time picker mode
 let refreshTimer = null;     // auto-refresh setInterval
 let countdownTimer = null;   // per-second countdown setInterval
@@ -43,8 +53,10 @@ function init() {
   restorePreferences();
   setupSearchListeners();
   setupFilterListeners();
+  setupFineFilterListeners();
   setupTimeListeners();
   setupNearbyListener();
+  setupPullToRefresh();
   setupVisibilityListener();
   registerServiceWorker();
 }
@@ -119,6 +131,9 @@ async function selectStation(station) {
   addRecentStation(station);
   renderRecentChipsFromStorage();
   showControls();
+  fineFilter = getStationFilter(station.id);
+  renderFilterBar(fineFilter);
+  showFilterHint(!getPreferences().usedFineFilter);
   savePreferences({ lastStation: station });
   await loadDepartures();
 }
@@ -158,7 +173,7 @@ async function loadDepartures() {
     }
 
     renderDeviations(deviationMessages);
-    renderDepartures(departures, activeFilter);
+    renderDepartures(departures, activeFilter, fineFilter);
     startAutoRefresh();
   } catch (err) {
     showError(`Failed to load departures. ${err.message || 'Please try again.'}`);
@@ -173,9 +188,71 @@ function setupFilterListeners() {
       chip.classList.add('active');
       activeFilter = chip.dataset.filter;
       if (departures.length > 0) {
-        renderDepartures(departures, activeFilter);
+        renderDepartures(departures, activeFilter, fineFilter);
       }
     });
+  });
+}
+
+// ===== Fine Filter (tap line badge / destination) =====
+function applyFineFilterChange() {
+  if (currentStation) saveStationFilter(currentStation.id, fineFilter);
+  if (!getPreferences().usedFineFilter) {
+    savePreferences({ usedFineFilter: true });
+  }
+  showFilterHint(false);
+  renderFilterBar(fineFilter);
+  renderDepartures(departures, activeFilter, fineFilter);
+}
+
+function toggleLineFilter(mode, designation) {
+  const idx = fineFilter.lines.findIndex((l) => l.mode === mode && l.designation === designation);
+  if (idx >= 0) {
+    fineFilter.lines.splice(idx, 1);
+  } else {
+    fineFilter.lines.push({ mode, designation });
+  }
+  applyFineFilterChange();
+}
+
+function toggleDestFilter(dest) {
+  const idx = fineFilter.destinations.indexOf(dest);
+  if (idx >= 0) {
+    fineFilter.destinations.splice(idx, 1);
+  } else {
+    fineFilter.destinations.push(dest);
+  }
+  applyFineFilterChange();
+}
+
+function setupFineFilterListeners() {
+  // Tap a line badge or destination in the departure list to toggle its filter
+  document.getElementById('departure-list').addEventListener('click', (e) => {
+    const badge = e.target.closest('.line-badge');
+    if (badge) {
+      toggleLineFilter(badge.dataset.mode, badge.textContent.trim());
+      return;
+    }
+    const dest = e.target.closest('.departure-destination');
+    if (dest) {
+      toggleDestFilter(dest.textContent.trim());
+    }
+  });
+
+  // Remove individual chips or clear all from the filter bar
+  document.getElementById('active-filter-bar').addEventListener('click', (e) => {
+    if (e.target.closest('#clear-filter-btn')) {
+      fineFilter = { lines: [], destinations: [] };
+      applyFineFilterChange();
+      return;
+    }
+    const chip = e.target.closest('.filter-bar-chip');
+    if (!chip) return;
+    if (chip.dataset.type === 'line') {
+      toggleLineFilter(chip.dataset.mode, chip.dataset.line);
+    } else {
+      toggleDestFilter(chip.querySelector('.chip-text').textContent.trim());
+    }
   });
 }
 
@@ -250,6 +327,68 @@ function setupNearbyListener() {
       nearbyBtn.style.opacity = '';
     }
   });
+}
+
+// ===== Pull to Refresh =====
+function setupPullToRefresh() {
+  const indicator = document.getElementById('ptr-indicator');
+  const READY_DIST = 60;   // damped px needed to trigger a refresh
+  const MAX_DIST = 90;
+  let startY = 0;
+  let tracking = false;
+  let ready = false;
+  let refreshing = false;
+
+  document.addEventListener(
+    'touchstart',
+    (e) => {
+      tracking = window.scrollY <= 0 && !!currentStation && !refreshing;
+      ready = false;
+      if (tracking) startY = e.touches[0].clientY;
+    },
+    { passive: true }
+  );
+
+  document.addEventListener(
+    'touchmove',
+    (e) => {
+      if (!tracking) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy <= 0 || window.scrollY > 0) {
+        ready = false;
+        indicator.classList.remove('visible', 'ready');
+        indicator.style.transform = '';
+        return;
+      }
+      const dist = Math.min(dy * 0.4, MAX_DIST);
+      ready = dist >= READY_DIST;
+      indicator.classList.add('visible');
+      indicator.classList.toggle('ready', ready);
+      indicator.style.transform = `translateX(-50%) translateY(${dist}px)`;
+    },
+    { passive: true }
+  );
+
+  document.addEventListener(
+    'touchend',
+    async () => {
+      if (!tracking) return;
+      tracking = false;
+      if (ready && !refreshing) {
+        refreshing = true;
+        indicator.classList.add('refreshing');
+        indicator.style.transform = `translateX(-50%) translateY(${READY_DIST}px)`;
+        try {
+          await loadDepartures();
+        } finally {
+          refreshing = false;
+        }
+      }
+      indicator.classList.remove('visible', 'ready', 'refreshing');
+      indicator.style.transform = '';
+    },
+    { passive: true }
+  );
 }
 
 // ===== Auto-Refresh =====

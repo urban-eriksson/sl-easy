@@ -2,7 +2,7 @@
  * Service Worker: cache-first for static assets, network-only for API calls.
  */
 
-const CACHE_NAME = 'sl-easy-v1';
+const CACHE_NAME = 'sl-easy-v2';
 const STATIC_ASSETS = [
   './',
   './index.html',
