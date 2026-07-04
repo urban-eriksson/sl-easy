@@ -24,6 +24,7 @@ import {
   renderDepartures,
   renderFilterBar,
   showFilterHint,
+  setLoadMore,
   updateCountdowns,
   updateRefreshCountdown,
 } from './ui.js';
@@ -35,10 +36,14 @@ let departures = [];         // flat array of all departures
 let activeFilter = 'all';    // transport filter
 let fineFilter = { lines: [], destinations: [] }; // per-station line/destination filter
 let useNowTime = true;       // time picker mode
+let extensionMinutes = 0;    // extra forecast window added by "load more" (doubles per step)
+let loadingMore = false;     // guard against concurrent load-more requests
 let refreshTimer = null;     // auto-refresh setInterval
 let countdownTimer = null;   // per-second countdown setInterval
 let refreshSeconds = 30;     // seconds until next refresh
 const REFRESH_INTERVAL = 30; // seconds
+const DEFAULT_FORECAST = 60; // API default window in minutes
+const MAX_FORECAST = 1200;   // API maximum window in minutes
 
 // ===== DOM Elements =====
 const searchInput = document.getElementById('search-input');
@@ -57,6 +62,7 @@ function init() {
   setupTimeListeners();
   setupNearbyListener();
   setupPullToRefresh();
+  setupLoadMoreListeners();
   setupVisibilityListener();
   registerServiceWorker();
 }
@@ -131,6 +137,7 @@ async function selectStation(station) {
   addRecentStation(station);
   renderRecentChipsFromStorage();
   showControls();
+  extensionMinutes = 0;
   fineFilter = getStationFilter(station.id);
   renderFilterBar(fineFilter);
   showFilterHint(!getPreferences().usedFineFilter);
@@ -139,14 +146,20 @@ async function selectStation(station) {
 }
 
 // ===== Departures =====
-async function loadDepartures() {
+function effectiveForecast() {
+  const base = useNowTime ? DEFAULT_FORECAST : Math.max(computeForecast(timeInput.value), DEFAULT_FORECAST);
+  return Math.min(base + extensionMinutes, MAX_FORECAST);
+}
+
+async function loadDepartures({ silent = false } = {}) {
   if (!currentStation) return;
 
-  showLoading();
+  if (!silent) showLoading();
   stopAutoRefresh();
 
   try {
-    const forecast = useNowTime ? 0 : computeForecast(timeInput.value);
+    // With no extension in "now" mode, pass 0 so the API default window applies
+    const forecast = useNowTime && extensionMinutes === 0 ? 0 : effectiveForecast();
     const [deptData, deviationData] = await Promise.all([
       fetchDepartures(currentStation.id, forecast),
       fetchDeviations(currentStation.id).catch(() => []),
@@ -173,11 +186,60 @@ async function loadDepartures() {
     }
 
     renderDeviations(deviationMessages);
-    renderDepartures(departures, activeFilter, fineFilter);
+    rerenderDepartures();
     startAutoRefresh();
   } catch (err) {
     showError(`Failed to load departures. ${err.message || 'Please try again.'}`);
   }
+}
+
+function rerenderDepartures() {
+  renderDepartures(departures, activeFilter, fineFilter, {
+    canLoadMore: effectiveForecast() < MAX_FORECAST,
+  });
+}
+
+// ===== Load More (scroll to extend the forecast window) =====
+async function loadMore() {
+  if (loadingMore || !currentStation || effectiveForecast() >= MAX_FORECAST) return false;
+  loadingMore = true;
+  setLoadMore('loading');
+  extensionMinutes = extensionMinutes === 0 ? DEFAULT_FORECAST : extensionMinutes * 2;
+  try {
+    await loadDepartures({ silent: true });
+  } finally {
+    loadingMore = false;
+  }
+  return true;
+}
+
+function setupLoadMoreListeners() {
+  const sentinel = document.getElementById('load-more');
+
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(
+      async (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        if (await loadMore()) {
+          // Re-arm: observe() fires an initial callback, so a sentinel still in
+          // view (short list) keeps extending until it scrolls out or hits the cap
+          observer.unobserve(sentinel);
+          observer.observe(sentinel);
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(sentinel);
+  }
+
+  // "Look further ahead" button shown in the empty state when the window can grow
+  document.getElementById('empty-state').addEventListener('click', (e) => {
+    const btn = e.target.closest('#extend-search-btn');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.textContent = 'Searching...';
+    loadMore();
+  });
 }
 
 // ===== Filters =====
@@ -188,7 +250,7 @@ function setupFilterListeners() {
       chip.classList.add('active');
       activeFilter = chip.dataset.filter;
       if (departures.length > 0) {
-        renderDepartures(departures, activeFilter, fineFilter);
+        rerenderDepartures();
       }
     });
   });
@@ -202,7 +264,7 @@ function applyFineFilterChange() {
   }
   showFilterHint(false);
   renderFilterBar(fineFilter);
-  renderDepartures(departures, activeFilter, fineFilter);
+  rerenderDepartures();
 }
 
 function toggleLineFilter(mode, designation) {
@@ -260,6 +322,7 @@ function setupFineFilterListeners() {
 function setupTimeListeners() {
   timeNowBtn.addEventListener('click', () => {
     useNowTime = true;
+    extensionMinutes = 0;
     timeNowBtn.classList.add('active');
     timeInput.value = '';
     if (currentStation) loadDepartures();
@@ -268,6 +331,7 @@ function setupTimeListeners() {
   timeInput.addEventListener('change', () => {
     if (timeInput.value) {
       useNowTime = false;
+      extensionMinutes = 0;
       timeNowBtn.classList.remove('active');
       if (currentStation) loadDepartures();
     }
@@ -379,7 +443,7 @@ function setupPullToRefresh() {
         indicator.classList.add('refreshing');
         indicator.style.transform = `translateX(-50%) translateY(${READY_DIST}px)`;
         try {
-          await loadDepartures();
+          await loadDepartures({ silent: true });
         } finally {
           refreshing = false;
         }
@@ -404,7 +468,7 @@ function startAutoRefresh() {
     updateCountdowns();
 
     if (refreshSeconds <= 0) {
-      loadDepartures();
+      loadDepartures({ silent: true });
     }
   }, 1000);
 }

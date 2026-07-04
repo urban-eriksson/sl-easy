@@ -21,6 +21,7 @@ const els = {
   errorMessage: $('error-message'),
   emptyState: $('empty-state'),
   departureList: $('departure-list'),
+  loadMore: $('load-more'),
   footer: $('footer'),
   refreshCountdown: $('refresh-countdown'),
 };
@@ -165,13 +166,28 @@ export function showError(message) {
 
 /**
  * Show empty state (no departures).
+ * @param {string} message
+ * @param {boolean} canExtend - Offer a button to search further ahead in time.
  */
-export function showEmpty(message = 'No departures found') {
+export function showEmpty(message = 'No departures found', canExtend = false) {
   toggle(els.loading, false);
   toggle(els.errorMessage, false);
   toggle(els.departureList, false);
-  els.emptyState.querySelector('p').textContent = message;
+  setLoadMore('hidden');
+  els.emptyState.innerHTML = `<p>${escapeHtml(message)}</p>${
+    canExtend ? '<button id="extend-search-btn">Look further ahead</button>' : ''
+  }`;
   toggle(els.emptyState, true);
+}
+
+/**
+ * Set the load-more sentinel state: 'hidden', 'idle' (observable, no spinner), or 'loading'.
+ */
+export function setLoadMore(state) {
+  toggle(els.loadMore, state !== 'hidden');
+  const loading = state === 'loading';
+  toggle(els.loadMore.querySelector('.load-more-spinner'), loading);
+  els.loadMore.querySelector('.load-more-text').textContent = loading ? 'Loading more...' : '';
 }
 
 /**
@@ -179,8 +195,10 @@ export function showEmpty(message = 'No departures found') {
  * @param {Array} departures - Flat array of departure objects from all transport modes.
  * @param {string} filter - Transport filter ("all" or mode name).
  * @param {Object} fineFilter - { lines: [{ mode, designation }], destinations: [string] }.
+ * @param {Object} opts - { canLoadMore }: whether the forecast window can still grow.
  */
-export function renderDepartures(departures, filter = 'all', fineFilter = { lines: [], destinations: [] }) {
+export function renderDepartures(departures, filter = 'all', fineFilter = { lines: [], destinations: [] }, opts = {}) {
+  const canLoadMore = !!opts.canLoadMore;
   toggle(els.loading, false);
   toggle(els.errorMessage, false);
   toggle(els.emptyState, false);
@@ -202,9 +220,12 @@ export function renderDepartures(departures, filter = 'all', fineFilter = { line
 
   if (filtered.length === 0) {
     if (fineFilter.lines.length > 0 || fineFilter.destinations.length > 0) {
-      showEmpty('No departures match the filter');
+      showEmpty('No departures match the filter', canLoadMore);
     } else {
-      showEmpty(filter !== 'all' ? `No ${filter.toLowerCase()} departures` : 'No departures found');
+      showEmpty(
+        filter !== 'all' ? `No ${filter.toLowerCase()} departures` : 'No departures found',
+        canLoadMore
+      );
     }
     return;
   }
@@ -252,6 +273,7 @@ export function renderDepartures(departures, filter = 'all', fineFilter = { line
     .join('');
 
   toggle(els.departureList, true);
+  setLoadMore(canLoadMore ? 'idle' : 'hidden');
   toggle(els.footer, true);
 }
 
