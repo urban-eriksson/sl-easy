@@ -199,7 +199,7 @@ function rerenderDepartures() {
   });
 }
 
-// ===== Load More (scroll to extend the forecast window) =====
+// ===== Load More (extend the forecast window) =====
 async function loadMore() {
   if (loadingMore || !currentStation || effectiveForecast() >= MAX_FORECAST) return false;
   loadingMore = true;
@@ -214,23 +214,10 @@ async function loadMore() {
 }
 
 function setupLoadMoreListeners() {
-  const sentinel = document.getElementById('load-more');
-
-  if ('IntersectionObserver' in window) {
-    const observer = new IntersectionObserver(
-      async (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        if (await loadMore()) {
-          // Re-arm: observe() fires an initial callback, so a sentinel still in
-          // view (short list) keeps extending until it scrolls out or hits the cap
-          observer.unobserve(sentinel);
-          observer.observe(sentinel);
-        }
-      },
-      { rootMargin: '200px' }
-    );
-    observer.observe(sentinel);
-  }
+  // "Load later departures" button below the list
+  document.getElementById('load-more-btn').addEventListener('click', () => {
+    loadMore();
+  });
 
   // "Look further ahead" button shown in the empty state when the window can grow
   document.getElementById('empty-state').addEventListener('click', (e) => {

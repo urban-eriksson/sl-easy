@@ -181,13 +181,16 @@ export function showEmpty(message = 'No departures found', canExtend = false) {
 }
 
 /**
- * Set the load-more sentinel state: 'hidden', 'idle' (observable, no spinner), or 'loading'.
+ * Set the load-more button state: 'hidden', 'idle', or 'loading'.
  */
 export function setLoadMore(state) {
   toggle(els.loadMore, state !== 'hidden');
   const loading = state === 'loading';
   toggle(els.loadMore.querySelector('.load-more-spinner'), loading);
-  els.loadMore.querySelector('.load-more-text').textContent = loading ? 'Loading more...' : '';
+  els.loadMore.querySelector('.load-more-text').textContent = loading
+    ? 'Loading...'
+    : 'Load later departures';
+  els.loadMore.querySelector('#load-more-btn').disabled = loading;
 }
 
 /**

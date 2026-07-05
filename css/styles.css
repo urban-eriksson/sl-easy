@@ -532,16 +532,36 @@ ul {
   cursor: default;
 }
 
-/* Load-more sentinel */
+/* Load-more button */
 #load-more {
+  display: flex;
+  justify-content: center;
+  padding: 14px 0 6px;
+}
+
+#load-more-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   min-height: 44px;
-  padding: 8px 0;
-  color: var(--text-muted);
-  font-size: 0.8rem;
+  padding: 10px 22px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  font-size: 0.9rem;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+#load-more-btn:hover {
+  border-color: var(--accent);
+}
+
+#load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .load-more-spinner {
