@@ -242,10 +242,10 @@ export function renderDepartures(departures, filter = 'all', fineFilter = { line
     return;
   }
 
-  // Sort by expected time
+  // Timetable view: sort by scheduled time
   filtered.sort((a, b) => {
-    const timeA = a.expected || a.scheduled;
-    const timeB = b.expected || b.scheduled;
+    const timeA = a.scheduled || a.expected;
+    const timeB = b.scheduled || b.expected;
     return new Date(timeA) - new Date(timeB);
   });
 
@@ -255,12 +255,14 @@ export function renderDepartures(departures, filter = 'all', fineFilter = { line
       const lineNum = dep.line.designation;
       const badgeClass = getLineBadgeClass(mode, lineNum);
       const dest = dep.destination;
+      const scheduled = dep.scheduled || dep.expected;
       const expected = dep.expected || dep.scheduled;
       const isCancelled = dep.state === 'CANCELLED';
       const isAtStop = dep.state === 'ATSTOP';
       const minutes = minutesUntil(expected);
-      const countdown = isAtStop ? 'Nu' : formatCountdown(minutes);
-      const absTime = formatTime(expected);
+      const delayMin = Math.round((new Date(expected) - new Date(scheduled)) / 60000);
+      const countdown = isAtStop ? 'Nu' : formatLiveCountdown(minutes, delayMin);
+      const absTime = formatTime(scheduled);
       const platform = dep.stop_point?.designation;
       const deviationMsg = dep.deviations?.[0]?.message;
       const lineSelected = fineFilter.lines.some(
@@ -268,7 +270,7 @@ export function renderDepartures(departures, filter = 'all', fineFilter = { line
       );
       const destSelected = fineFilter.destinations.includes(dest);
 
-      return `<li class="departure-row${isCancelled ? ' cancelled' : ''}" data-expected="${expected}">
+      return `<li class="departure-row${isCancelled ? ' cancelled' : ''}" data-expected="${expected}" data-delay="${delayMin}">
         <button class="line-badge ${badgeClass}${lineSelected ? ' selected' : ''}" data-mode="${mode}" title="Filter on line ${escapeHtml(lineNum)}">${escapeHtml(lineNum)}</button>
         <div class="departure-info">
           <button class="departure-destination${destSelected ? ' selected' : ''}" title="Filter on destination">${escapeHtml(dest)}</button>
@@ -278,7 +280,7 @@ export function renderDepartures(departures, filter = 'all', fineFilter = { line
         </div>
         <div class="departure-time-col">
           <div class="departure-clock">${absTime}</div>
-          ${showCountdown ? `<div class="departure-countdown${isAtStop ? ' at-stop' : ''}">${countdown}</div>` : ''}
+          ${showCountdown ? `<div class="departure-countdown${isAtStop ? ' at-stop' : ''}${delayMin !== 0 && !isAtStop ? ' delayed' : ''}">${countdown}</div>` : ''}
         </div>
       </li>`;
     })
@@ -326,6 +328,16 @@ export function showFilterHint(show) {
 }
 
 /**
+ * Live countdown text: minutes until the expected time, with the delay vs the
+ * timetable appended when the vehicle is running off schedule, e.g. "9 min (+3)".
+ */
+function formatLiveCountdown(minutes, delayMin) {
+  if (!delayMin) return formatCountdown(minutes);
+  const sign = delayMin > 0 ? '+' : '-';
+  return `${formatCountdown(minutes)} (${sign}${Math.abs(delayMin)})`;
+}
+
+/**
  * Update countdown times in existing departure rows without full re-render.
  */
 export function updateCountdowns() {
@@ -337,7 +349,7 @@ export function updateCountdowns() {
     if (!timeEl || row.classList.contains('cancelled')) return;
     const isAtStop = timeEl.classList.contains('at-stop');
     if (!isAtStop) {
-      timeEl.textContent = formatCountdown(minutes);
+      timeEl.textContent = formatLiveCountdown(minutes, parseInt(row.dataset.delay, 10) || 0);
     }
   });
 }

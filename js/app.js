@@ -168,7 +168,7 @@ async function loadDepartures({ silent = false } = {}) {
     if (offsetMinutes > 0) {
       const windowStart = Date.now() + offsetMinutes * 60000;
       departures = departures.filter(
-        (d) => new Date(d.expected || d.scheduled).getTime() >= windowStart
+        (d) => new Date(d.scheduled || d.expected).getTime() >= windowStart
       );
     }
 
