@@ -18,39 +18,39 @@ import {
   renderRecentChips,
   showControls,
   renderDeviations,
+  toggleDeviations,
+  collapseDeviations,
+  setWindowLabel,
   showLoading,
   showError,
-  showEmpty,
   renderDepartures,
   renderFilterBar,
   showFilterHint,
-  setLoadMore,
   updateCountdowns,
   updateRefreshCountdown,
 } from './ui.js';
-import { debounce, haversine, computeForecast } from './utils.js';
+import { debounce, haversine, formatTime } from './utils.js';
 
 // ===== State =====
 let currentStation = null;   // { id, name }
 let departures = [];         // flat array of all departures
 let activeFilter = 'all';    // transport filter
 let fineFilter = { lines: [], destinations: [] }; // per-station line/destination filter
-let useNowTime = true;       // time picker mode
-let extensionMinutes = 0;    // extra forecast window added by "load more" (doubles per step)
-let loadingMore = false;     // guard against concurrent load-more requests
+let offsetMinutes = 0;       // start of the shown window, minutes from now (0 = now)
 let refreshTimer = null;     // auto-refresh setInterval
 let countdownTimer = null;   // per-second countdown setInterval
 let refreshSeconds = 30;     // seconds until next refresh
-const REFRESH_INTERVAL = 30; // seconds
-const DEFAULT_FORECAST = 60; // API default window in minutes
-const MAX_FORECAST = 1200;   // API maximum window in minutes
+const REFRESH_INTERVAL = 30;  // seconds
+const WINDOW_MINUTES = 120;   // each list covers a 2 h window
+const MAX_FORECAST = 1200;    // API maximum forecast in minutes (hard 400 above)
+const MAX_OFFSET = MAX_FORECAST - WINDOW_MINUTES;
 
 // ===== DOM Elements =====
 const searchInput = document.getElementById('search-input');
 const nearbyBtn = document.getElementById('nearby-btn');
 const filterChips = document.querySelectorAll('.filter-chip');
-const timeInput = document.getElementById('time-input');
-const timeNowBtn = document.getElementById('time-now-btn');
+const shiftButtons = document.querySelectorAll('.shift-btn');
+const shiftResetBtn = document.getElementById('shift-reset-btn');
 
 // ===== Init =====
 function init() {
@@ -59,10 +59,10 @@ function init() {
   setupSearchListeners();
   setupFilterListeners();
   setupFineFilterListeners();
-  setupTimeListeners();
+  setupTimeShiftListeners();
+  setupDeviationsToggle();
   setupNearbyListener();
   setupPullToRefresh();
-  setupLoadMoreListeners();
   setupVisibilityListener();
   registerServiceWorker();
 }
@@ -137,7 +137,8 @@ async function selectStation(station) {
   addRecentStation(station);
   renderRecentChipsFromStorage();
   showControls();
-  extensionMinutes = 0;
+  offsetMinutes = 0;
+  collapseDeviations();
   fineFilter = getStationFilter(station.id);
   renderFilterBar(fineFilter);
   showFilterHint(!getPreferences().usedFineFilter);
@@ -146,20 +147,17 @@ async function selectStation(station) {
 }
 
 // ===== Departures =====
-function effectiveForecast() {
-  const base = useNowTime ? DEFAULT_FORECAST : Math.max(computeForecast(timeInput.value), DEFAULT_FORECAST);
-  return Math.min(base + extensionMinutes, MAX_FORECAST);
-}
-
 async function loadDepartures({ silent = false } = {}) {
   if (!currentStation) return;
 
   if (!silent) showLoading();
   stopAutoRefresh();
+  updateTimeShiftUI();
 
   try {
-    // With no extension in "now" mode, pass 0 so the API default window applies
-    const forecast = useNowTime && extensionMinutes === 0 ? 0 : effectiveForecast();
+    // The API window always starts at "now": fetch up to the end of the shown
+    // window and drop everything before its start.
+    const forecast = Math.min(offsetMinutes + WINDOW_MINUTES, MAX_FORECAST);
     const [deptData, deviationData] = await Promise.all([
       fetchDepartures(currentStation.id, forecast),
       fetchDeviations(currentStation.id).catch(() => []),
@@ -167,6 +165,12 @@ async function loadDepartures({ silent = false } = {}) {
 
     // Departures come as a flat array
     departures = deptData.departures || [];
+    if (offsetMinutes > 0) {
+      const windowStart = Date.now() + offsetMinutes * 60000;
+      departures = departures.filter(
+        (d) => new Date(d.expected || d.scheduled).getTime() >= windowStart
+      );
+    }
 
     // Collect deviations from both sources
     const deviationMessages = [];
@@ -195,37 +199,49 @@ async function loadDepartures({ silent = false } = {}) {
 
 function rerenderDepartures() {
   renderDepartures(departures, activeFilter, fineFilter, {
-    canLoadMore: effectiveForecast() < MAX_FORECAST,
+    showCountdown: offsetMinutes === 0,
   });
 }
 
-// ===== Load More (extend the forecast window) =====
-async function loadMore() {
-  if (loadingMore || !currentStation || effectiveForecast() >= MAX_FORECAST) return false;
-  loadingMore = true;
-  setLoadMore('loading');
-  extensionMinutes = extensionMinutes === 0 ? DEFAULT_FORECAST : extensionMinutes * 2;
-  try {
-    await loadDepartures({ silent: true });
-  } finally {
-    loadingMore = false;
+// ===== Time Shift (browse 2 h windows) =====
+function updateTimeShiftUI() {
+  const start = new Date(Date.now() + offsetMinutes * 60000);
+  const end = new Date(start.getTime() + WINDOW_MINUTES * 60000);
+
+  if (offsetMinutes === 0) {
+    setWindowLabel(`Now – ${formatTime(end)}`);
+  } else {
+    const day = start.getDate() === new Date().getDate() ? 'Today' : 'Tomorrow';
+    setWindowLabel(`${day} ${formatTime(start)} – ${formatTime(end)}`);
   }
-  return true;
+
+  shiftButtons.forEach((btn) => {
+    const delta = parseInt(btn.dataset.shift, 10);
+    btn.disabled = delta < 0 ? offsetMinutes === 0 : offsetMinutes >= MAX_OFFSET;
+  });
 }
 
-function setupLoadMoreListeners() {
-  // "Load later departures" button below the list
-  document.getElementById('load-more-btn').addEventListener('click', () => {
-    loadMore();
+function setupTimeShiftListeners() {
+  shiftButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!currentStation) return;
+      const delta = parseInt(btn.dataset.shift, 10);
+      offsetMinutes = Math.min(Math.max(offsetMinutes + delta, 0), MAX_OFFSET);
+      loadDepartures();
+    });
   });
 
-  // "Look further ahead" button shown in the empty state when the window can grow
-  document.getElementById('empty-state').addEventListener('click', (e) => {
-    const btn = e.target.closest('#extend-search-btn');
-    if (!btn) return;
-    btn.disabled = true;
-    btn.textContent = 'Searching...';
-    loadMore();
+  shiftResetBtn.addEventListener('click', () => {
+    if (!currentStation) return;
+    offsetMinutes = 0;
+    loadDepartures();
+  });
+}
+
+// ===== Deviations toggle =====
+function setupDeviationsToggle() {
+  document.getElementById('deviations-toggle').addEventListener('click', () => {
+    toggleDeviations();
   });
 }
 
@@ -301,26 +317,6 @@ function setupFineFilterListeners() {
       toggleLineFilter(chip.dataset.mode, chip.dataset.line);
     } else {
       toggleDestFilter(chip.querySelector('.chip-text').textContent.trim());
-    }
-  });
-}
-
-// ===== Time Picker =====
-function setupTimeListeners() {
-  timeNowBtn.addEventListener('click', () => {
-    useNowTime = true;
-    extensionMinutes = 0;
-    timeNowBtn.classList.add('active');
-    timeInput.value = '';
-    if (currentStation) loadDepartures();
-  });
-
-  timeInput.addEventListener('change', () => {
-    if (timeInput.value) {
-      useNowTime = false;
-      extensionMinutes = 0;
-      timeNowBtn.classList.remove('active');
-      if (currentStation) loadDepartures();
     }
   });
 }

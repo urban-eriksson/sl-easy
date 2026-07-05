@@ -9,10 +9,21 @@ const MAX_RECENT = 5;
 
 /**
  * Get array of recent stations. Each entry: { id, name }
+ * Ids are normalized to numbers and duplicates dropped, healing entries
+ * written by older app versions (string ids caused duplicate chips).
  */
 export function getRecentStations() {
   try {
-    return JSON.parse(localStorage.getItem(RECENT_KEY)) || [];
+    const raw = JSON.parse(localStorage.getItem(RECENT_KEY)) || [];
+    const seen = new Set();
+    const cleaned = [];
+    for (const s of raw) {
+      const id = Number(s?.id);
+      if (!Number.isFinite(id) || seen.has(id) || !s.name) continue;
+      seen.add(id);
+      cleaned.push({ id, name: s.name });
+    }
+    return cleaned;
   } catch {
     return [];
   }
@@ -22,8 +33,9 @@ export function getRecentStations() {
  * Add a station to recents (most recent first, deduplicated, max 5).
  */
 export function addRecentStation(station) {
-  const recents = getRecentStations().filter((s) => s.id !== station.id);
-  recents.unshift({ id: station.id, name: station.name });
+  const id = Number(station.id);
+  const recents = getRecentStations().filter((s) => s.id !== id);
+  recents.unshift({ id, name: station.name });
   if (recents.length > MAX_RECENT) recents.length = MAX_RECENT;
   localStorage.setItem(RECENT_KEY, JSON.stringify(recents));
 }

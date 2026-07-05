@@ -41,6 +41,11 @@ export function haversine(lat1, lon1, lat2, lon2) {
  */
 export function formatCountdown(minutes) {
   if (minutes <= 0) return 'Nu';
+  if (minutes >= 60) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m === 0 ? `${h} h` : `${h} h ${m} min`;
+  }
   return `${minutes} min`;
 }
 
@@ -60,22 +65,6 @@ export function minutesUntil(isoStr) {
   const target = new Date(isoStr);
   const diff = (target - Date.now()) / 60000;
   return Math.round(diff);
-}
-
-/**
- * Compute the `forecast` parameter value (minutes from now) for a given HH:MM time string.
- * Returns 0 for "now" or past times, clamped to 5–1200 range.
- */
-export function computeForecast(timeStr) {
-  if (!timeStr) return 0;
-  const [h, m] = timeStr.split(':').map(Number);
-  const now = new Date();
-  const target = new Date();
-  target.setHours(h, m, 0, 0);
-  if (target <= now) return 0;
-  const minutes = Math.round((target - now) / 60000);
-  if (minutes < 5) return 0;
-  return Math.min(minutes, 1200);
 }
 
 /**

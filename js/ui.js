@@ -15,13 +15,15 @@ const els = {
   controlsSection: $('controls-section'),
   activeFilterBar: $('active-filter-bar'),
   filterHint: $('filter-hint'),
+  windowLabel: $('window-label'),
   deviationsSection: $('deviations-section'),
+  deviationsToggle: $('deviations-toggle'),
+  deviationsSummary: $('deviations-summary'),
   deviationsList: $('deviations-list'),
   loading: $('loading'),
   errorMessage: $('error-message'),
   emptyState: $('empty-state'),
   departureList: $('departure-list'),
-  loadMore: $('load-more'),
   footer: $('footer'),
   refreshCountdown: $('refresh-countdown'),
 };
@@ -92,16 +94,20 @@ export function renderRecentChips(stations, activeId, onSelect) {
     return;
   }
 
+  // Ids may be number or string depending on where the station came from:
+  // compare loosely and highlight at most one chip.
+  let highlighted = false;
   els.recentChips.innerHTML = stations
-    .map(
-      (s) =>
-        `<button class="recent-chip${s.id === activeId ? ' active' : ''}" data-id="${s.id}">${escapeHtml(s.name)}</button>`
-    )
+    .map((s) => {
+      const active = !highlighted && Number(s.id) === Number(activeId);
+      if (active) highlighted = true;
+      return `<button class="recent-chip${active ? ' active' : ''}" data-id="${s.id}">${escapeHtml(s.name)}</button>`;
+    })
     .join('');
 
   els.recentChips.querySelectorAll('.recent-chip').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const station = stations.find((s) => s.id === parseInt(btn.dataset.id, 10));
+      const station = stations.find((s) => Number(s.id) === Number(btn.dataset.id));
       if (station) onSelect(station);
     });
   });
@@ -117,30 +123,53 @@ export function showControls() {
 }
 
 /**
- * Render deviation messages.
+ * Render deviation messages as a collapsed summary row; tap to expand.
+ * Expansion state is preserved across re-renders (auto-refresh).
  * @param {Array} messages - Array of deviation strings.
  */
+let deviationsExpanded = false;
+
 export function renderDeviations(messages) {
-  if (!messages || messages.length === 0) {
+  const unique = [...new Set(messages || [])];
+  if (unique.length === 0) {
     toggle(els.deviationsSection, false);
     return;
   }
 
-  const unique = [...new Set(messages)];
+  els.deviationsSummary.textContent =
+    unique.length === 1 ? '1 service alert' : `${unique.length} service alerts`;
   els.deviationsList.innerHTML = unique
-    .map(
-      (msg) => `<div class="deviation-item">
-      <span class="deviation-icon">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" color="var(--warning)">
-          <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-        </svg>
-      </span>
-      <span>${escapeHtml(msg)}</span>
-    </div>`
-    )
+    .map((msg) => `<div class="deviation-item">${escapeHtml(msg)}</div>`)
     .join('');
 
+  toggle(els.deviationsList, deviationsExpanded);
+  els.deviationsToggle.classList.toggle('expanded', deviationsExpanded);
   toggle(els.deviationsSection, true);
+}
+
+/**
+ * Toggle the deviations list open/closed.
+ */
+export function toggleDeviations() {
+  deviationsExpanded = !deviationsExpanded;
+  toggle(els.deviationsList, deviationsExpanded);
+  els.deviationsToggle.classList.toggle('expanded', deviationsExpanded);
+}
+
+/**
+ * Collapse the deviations list (used when switching station).
+ */
+export function collapseDeviations() {
+  deviationsExpanded = false;
+  toggle(els.deviationsList, false);
+  els.deviationsToggle.classList.remove('expanded');
+}
+
+/**
+ * Set the text describing the currently shown time window.
+ */
+export function setWindowLabel(text) {
+  els.windowLabel.textContent = text;
 }
 
 /**
@@ -167,30 +196,13 @@ export function showError(message) {
 /**
  * Show empty state (no departures).
  * @param {string} message
- * @param {boolean} canExtend - Offer a button to search further ahead in time.
  */
-export function showEmpty(message = 'No departures found', canExtend = false) {
+export function showEmpty(message = 'No departures found') {
   toggle(els.loading, false);
   toggle(els.errorMessage, false);
   toggle(els.departureList, false);
-  setLoadMore('hidden');
-  els.emptyState.innerHTML = `<p>${escapeHtml(message)}</p>${
-    canExtend ? '<button id="extend-search-btn">Look further ahead</button>' : ''
-  }`;
+  els.emptyState.innerHTML = `<p>${escapeHtml(message)}</p>`;
   toggle(els.emptyState, true);
-}
-
-/**
- * Set the load-more button state: 'hidden', 'idle', or 'loading'.
- */
-export function setLoadMore(state) {
-  toggle(els.loadMore, state !== 'hidden');
-  const loading = state === 'loading';
-  toggle(els.loadMore.querySelector('.load-more-spinner'), loading);
-  els.loadMore.querySelector('.load-more-text').textContent = loading
-    ? 'Loading...'
-    : 'Load later departures';
-  els.loadMore.querySelector('#load-more-btn').disabled = loading;
 }
 
 /**
@@ -198,10 +210,10 @@ export function setLoadMore(state) {
  * @param {Array} departures - Flat array of departure objects from all transport modes.
  * @param {string} filter - Transport filter ("all" or mode name).
  * @param {Object} fineFilter - { lines: [{ mode, designation }], destinations: [string] }.
- * @param {Object} opts - { canLoadMore }: whether the forecast window can still grow.
+ * @param {Object} opts - { showCountdown }: render the minutes-left line (only for the "now" window).
  */
 export function renderDepartures(departures, filter = 'all', fineFilter = { lines: [], destinations: [] }, opts = {}) {
-  const canLoadMore = !!opts.canLoadMore;
+  const showCountdown = opts.showCountdown !== false;
   toggle(els.loading, false);
   toggle(els.errorMessage, false);
   toggle(els.emptyState, false);
@@ -223,12 +235,9 @@ export function renderDepartures(departures, filter = 'all', fineFilter = { line
 
   if (filtered.length === 0) {
     if (fineFilter.lines.length > 0 || fineFilter.destinations.length > 0) {
-      showEmpty('No departures match the filter', canLoadMore);
+      showEmpty('No departures match the filter');
     } else {
-      showEmpty(
-        filter !== 'all' ? `No ${filter.toLowerCase()} departures` : 'No departures found',
-        canLoadMore
-      );
+      showEmpty(filter !== 'all' ? `No ${filter.toLowerCase()} departures` : 'No departures found');
     }
     return;
   }
@@ -269,14 +278,13 @@ export function renderDepartures(departures, filter = 'all', fineFilter = { line
         </div>
         <div class="departure-time-col">
           <div class="departure-clock">${absTime}</div>
-          <div class="departure-countdown${isAtStop ? ' at-stop' : ''}">${countdown}</div>
+          ${showCountdown ? `<div class="departure-countdown${isAtStop ? ' at-stop' : ''}">${countdown}</div>` : ''}
         </div>
       </li>`;
     })
     .join('');
 
   toggle(els.departureList, true);
-  setLoadMore(canLoadMore ? 'idle' : 'hidden');
   toggle(els.footer, true);
 }
 

@@ -280,46 +280,63 @@ ul {
   color: var(--accent);
 }
 
-#time-picker {
+/* Time-shift row: browse 2 h windows */
+#time-shift {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
-#time-picker label {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-#time-input {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  outline: none;
-}
-
-#time-input:focus {
-  border-color: var(--accent);
-}
-
-#time-now-btn {
+.shift-btn,
+#shift-reset-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 8px 14px;
+  border-radius: 20px;
   font-size: 0.9rem;
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s;
+  white-space: nowrap;
 }
 
-#time-now-btn.active {
-  background: var(--accent-dim);
+.shift-btn {
+  flex: 1;
+  max-width: 76px;
+  padding: 8px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+#shift-reset-btn {
+  width: 44px;
+  flex-shrink: 0;
+  padding: 8px 0;
+  color: var(--accent);
+}
+
+.shift-btn:hover,
+#shift-reset-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.shift-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+#window-label {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ===== Active Fine-Filter Bar ===== */
@@ -434,21 +451,55 @@ ul {
   animation: spin 0.8s linear infinite;
 }
 
-/* ===== Deviations ===== */
+/* ===== Deviations (collapsible) ===== */
 #deviations-section {
   margin-bottom: 12px;
+}
+
+#deviations-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 14px;
+  background: var(--warning-bg);
+  border: 1px solid rgba(240, 168, 48, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: var(--warning);
+  cursor: pointer;
+  text-align: left;
+}
+
+#deviations-summary {
+  flex: 1;
+}
+
+.deviations-chevron {
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+
+#deviations-toggle.expanded .deviations-chevron {
+  transform: rotate(180deg);
+}
+
+#deviations-toggle.expanded {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: none;
 }
 
 #deviations-list {
   background: var(--warning-bg);
   border: 1px solid rgba(240, 168, 48, 0.3);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  padding: 4px 14px 10px;
 }
 
 .deviation-item {
-  display: flex;
-  gap: 8px;
   padding: 6px 0;
   font-size: 0.82rem;
   color: var(--warning);
@@ -457,11 +508,6 @@ ul {
 
 .deviation-item + .deviation-item {
   border-top: 1px solid rgba(240, 168, 48, 0.15);
-}
-
-.deviation-icon {
-  flex-shrink: 0;
-  margin-top: 2px;
 }
 
 /* ===== Departures ===== */
@@ -509,68 +555,6 @@ ul {
   padding: 48px 16px;
   color: var(--text-muted);
   font-size: 0.9rem;
-}
-
-#extend-search-btn {
-  margin-top: 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 9px 18px;
-  font-size: 0.9rem;
-  color: var(--accent);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-#extend-search-btn:hover {
-  border-color: var(--accent);
-}
-
-#extend-search-btn:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-/* Load-more button */
-#load-more {
-  display: flex;
-  justify-content: center;
-  padding: 14px 0 6px;
-}
-
-#load-more-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 10px 22px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  font-size: 0.9rem;
-  color: var(--accent);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-#load-more-btn:hover {
-  border-color: var(--accent);
-}
-
-#load-more-btn:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.load-more-spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
 }
 
 /* Departure List */
