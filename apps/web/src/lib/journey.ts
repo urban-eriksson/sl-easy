@@ -118,7 +118,7 @@ export function toJourney(picked: Picked, stations: Stations): Journey {
         : undefined;
     stops.push({
       name: pointName(point),
-      siteId: areaId === undefined ? undefined : stations.ofArea(areaId)?.id,
+      siteId: areaId === undefined ? undefined : stations.ofArea(areaId, pointName(point))?.id,
       planned: planned + picked.shift,
       delay: delay || undefined,
     });
@@ -129,16 +129,26 @@ export function toJourney(picked: Picked, stations: Stations): Journey {
 /**
  * The direct departures among planner journeys from one station to another,
  * later than `after`. Each carries its stops as far as that other station.
+ *
+ * With `between` (site ids), the ride itself must run from the one station to the
+ * other: the planner also offers a ride to somewhere near and a walk.
  */
 export function directDepartures(
   journeys: ApiJourney[],
   after: number,
   stations: Stations,
+  between?: { from: number; to: number },
 ): Departure[] {
+  const at = (point: ApiPoint, siteId: number | undefined) => {
+    const areas = siteId === undefined ? undefined : stations.get(siteId)?.areas;
+    const area = areaIdOf(point);
+    return !areas || area === undefined || areas.includes(area);
+  };
   const out: Departure[] = [];
   for (const journey of journeys) {
     const leg = ride(journey);
     if (!leg) continue;
+    if (!at(leg.origin, between?.from) || !at(leg.destination, between?.to)) continue;
     const scheduled = plannedDeparture(leg);
     if (scheduled <= after) continue;
     const designation = leg.transportation?.disassembledName ?? "";

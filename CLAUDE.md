@@ -59,7 +59,9 @@ verified against the live APIs:
 - All three hosts answer 429 in short bursts. `getJson` retries once; keep request counts
   low (disruption notices are fetched once per station for this reason).
 - IDs: a station ("site") 9117 is `9091001000009117` to the planner; a stop area 1131 is
-  `9021001001131000`. A site groups several stop areas (metro, bus, train).
+  `9021001001131000`. A site groups several stop areas (metro, bus, train). Some two hundred
+  stop areas are listed under more than one site (the metro at Medborgarplatsen is also under
+  "Björns trädgård"); `Stations.ofArea` takes the stop's name to choose.
 
 ## Architecture
 
@@ -79,7 +81,9 @@ verified against the live APIs:
   in `App` drives it. One stream per transport mode, because the planner hides journeys it
   finds worse (a bus loses to a faster metro); the stream furthest behind is fetched next and
   rows show only up to the point every stream has reached, so nothing is inserted above what
-  the user is reading. This is also the only place the app can scroll into later departures.
+  the user is reading. A row is kept only if the ride itself ends at the station asked
+  for: the planner also offers a ride to somewhere near plus a walk (bus 4 for
+  Medborgarplatsen). This is also the only place the app can scroll into later departures.
 - `use-location` + `stations.ts`: the full station list ships with the app as a fingerprinted
   JSON (`src/data/stations.json`, generated). Nearest-station lookup and search are local and
   instant. After the user has asked for their position once, a cold start (no `?s=`) asks

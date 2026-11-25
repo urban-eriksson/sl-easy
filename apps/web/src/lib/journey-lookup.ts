@@ -125,7 +125,7 @@ export async function fetchDirect(
     },
     signal,
   );
-  const departures = directDepartures(journeys, after + 30_000, stations);
+  const departures = directDepartures(journeys, after + 30_000, stations, query);
   const latest = Math.max(after, ...departures.map((d) => d.scheduled));
   // Nothing new (no direct service right now, or it has ended): step ahead anyway.
   const next = latest > after + 60_000 ? latest : after + 30 * 60_000;

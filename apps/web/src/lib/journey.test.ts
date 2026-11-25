@@ -154,4 +154,12 @@ describe("directDepartures", () => {
     });
     expect(out[0].journey?.stops).toHaveLength(3);
   });
+
+  it("drops a ride that only gets near the station asked for", () => {
+    const short = leg("4", "2026-11-25T08:10:00Z");
+    short.destination = point(1121, "Rådmansgatan");
+    const all = journeys(short, leg("18", "2026-11-25T08:05:00Z"));
+    const out = directDepartures(all, 0, stations, { from: 9117, to: 9119 });
+    expect(out.map((d) => d.line.designation)).toEqual(["18"]);
+  });
 });

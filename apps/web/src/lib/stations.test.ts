@@ -18,6 +18,16 @@ describe("Stations", () => {
     expect(stations.ofArea(1)).toBeUndefined();
   });
 
+  it("picks among stations sharing a stop area by name, else the larger", () => {
+    const shared = new Stations([
+      [1315, "Björns trädgård", 59.3152, 18.0729, [1511, 10410]],
+      [9191, "Medborgarplatsen", 59.3143, 18.0734, [1511, 10130, 10410]],
+    ]);
+    expect(shared.ofArea(1511, "Medborgarplatsen")?.id).toBe(9191);
+    expect(shared.ofArea(10410, "Björns trädgård")?.id).toBe(1315);
+    expect(shared.ofArea(1511)?.id).toBe(9191);
+  });
+
   it("orders by distance", () => {
     const near = stations.nearest(odenplan.lat, odenplan.lon, 2);
     expect(near.map((p) => p.name)).toEqual(["Odenplan", "Rådmansgatan"]);

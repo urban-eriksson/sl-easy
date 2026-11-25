@@ -9,14 +9,18 @@ export type Place = Station & { lat: number; lon: number; areas: number[] };
 export class Stations {
   readonly all: Place[];
   private byId = new Map<number, Place>();
-  private byArea = new Map<number, Place>();
+  private byArea = new Map<number, Place[]>();
   private folded: string[];
 
   constructor(rows: Row[]) {
     this.all = rows.map(([id, name, lat, lon, areas]) => ({ id, name, lat, lon, areas }));
     for (const p of this.all) {
       this.byId.set(p.id, p);
-      for (const a of p.areas) if (!this.byArea.has(a)) this.byArea.set(a, p);
+      for (const a of p.areas) {
+        const sharing = this.byArea.get(a);
+        if (sharing) sharing.push(p);
+        else this.byArea.set(a, [p]);
+      }
     }
     this.folded = this.all.map((p) => fold(p.name));
   }
@@ -25,9 +29,19 @@ export class Stations {
     return this.byId.get(id);
   }
 
-  /** The station a stop area belongs to. */
-  ofArea(areaId: number): Place | undefined {
-    return this.byArea.get(areaId);
+  /**
+   * The station a stop area belongs to. SL lists some two hundred stop areas under
+   * several stations (the metro at Medborgarplatsen is also under "Björns trädgård"):
+   * then the one called `name` wins, else the one with most stop areas, the hub.
+   */
+  ofArea(areaId: number, name?: string): Place | undefined {
+    const sharing = this.byArea.get(areaId);
+    if (!sharing || sharing.length === 1) return sharing?.[0];
+    const q = name ? fold(name) : "";
+    return (
+      sharing.find((p) => fold(p.name) === q) ??
+      sharing.reduce((best, p) => (p.areas.length > best.areas.length ? p : best))
+    );
   }
 
   /** The `count` stations closest to a position, nearest first. */
