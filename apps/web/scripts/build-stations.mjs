@@ -6,7 +6,13 @@
  */
 import { writeFile } from "node:fs/promises";
 
-const res = await fetch("https://transport.integration.sl.se/v1/sites?expand=true");
+const url = "https://transport.integration.sl.se/v1/sites?expand=true";
+let res = await fetch(url);
+// SL answers 429 in short bursts; a few spaced retries get through.
+for (let i = 0; res.status === 429 && i < 4; i++) {
+  await new Promise((r) => setTimeout(r, 3000));
+  res = await fetch(url);
+}
 if (!res.ok) throw new Error(`sites: HTTP ${res.status}`);
 const sites = await res.json();
 
