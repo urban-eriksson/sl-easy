@@ -1,46 +1,31 @@
-## SL Easy - v3
+## SL Eazy
 
-Real-time Stockholm public transport departures. A mobile-first PWA with no backend — uses SL's public APIs directly.
+Nästa avgång från hållplatsen där du står. A mobile-first PWA for Stockholm public transport
+with no backend: it uses SL's public APIs directly.
 
-**Live:** [urban-eriksson.github.io/sl-easy](https://urban-eriksson.github.io/sl-easy/)
+**Live:** https://sl.korist.se
 
-### Features
-
-- Station search with autocomplete
-- Real-time departure board with live countdown
-- Nearby stations via geolocation
-- Transport type filtering (Metro/Bus/Train/Tram/Ferry)
-- Future departure time picker
-- Service disruption alerts
-- Recent stations (persisted in localStorage)
-- Auto-refresh every 30 seconds
-- Installable PWA with offline shell caching
-- Dark theme with SL metro line colors
-
-### Tech
-
-Plain HTML/CSS/JS with ES modules. No build step, no dependencies, no framework. Push-to-deploy on GitHub Pages.
+- Opens on the nearest station; search and nearby lookup are local and instant
+- Each line's next departures, timetable time first with live delay beside it
+- Tap a departure for its stops; tap a stop to see every direct way there ("Till Hornstull"),
+  scrolling into later departures, or move on to that stop
+- Disruption notices, installable, dark
 
 ### Development
 
 ```bash
-python3 -m http.server 8000
-# Open http://localhost:8000
+cd apps/web
+npm install
+npm run dev      # http://localhost:5173
+npm run check && npm test
 ```
+
+Vite + React + TypeScript + Tailwind. Hosting is S3 + CloudFront via CDK (`infra/`);
+`scripts/deploy-web.sh` builds and deploys. See `CLAUDE.md` for how the SL APIs shape the app.
 
 ### Data
 
-Uses SL's public integration APIs (no API key required):
-- [Transport API](https://transport.integration.sl.se) — departures and sites
-- [Journey Planner](https://journeyplanner.integration.sl.se) — station search
-- [Deviations API](https://deviations.integration.sl.se) — service disruptions
-
-Data licensed under [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) by [Trafiklab](https://www.trafiklab.se) / SL.
-
-### Roadmap
-
-- [ ] Direction grouping (group departures by direction)
-- [ ] Favorites with custom ordering
-- [ ] Push notifications for disruptions
-- [ ] Trip planner integration
-- [ ] Accessibility improvements (ARIA, screen reader testing)
+SL's integration APIs (no key): [Transport](https://transport.integration.sl.se),
+[Journey planner](https://journeyplanner.integration.sl.se),
+[Deviations](https://deviations.integration.sl.se). Data licensed under
+[CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) by [Trafiklab](https://www.trafiklab.se) / SL.

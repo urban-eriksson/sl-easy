@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/bricolage-grotesque";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Geist Variable", system-ui, sans-serif;
+  --font-heading: "Bricolage Grotesque Variable", "Geist Variable", system-ui, sans-serif;
+  --color-ring: var(--ring);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-late: var(--late);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-card: var(--card);
+  --color-line-metro-red: var(--line-metro-red);
+  --color-line-metro-green: var(--line-metro-green);
+  --color-line-metro-blue: var(--line-metro-blue);
+  --color-line-bus: var(--line-bus);
+  --color-line-bus-blue: var(--line-bus-blue);
+  --color-line-train: var(--line-train);
+  --color-line-tram: var(--line-tram);
+  --color-line-ferry: var(--line-ferry);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --animate-sheet-up: sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-fade-in: fade-in 0.18s ease-out;
+}
+
+/*
+ * Dark only. The page is near-black and all text is ash white, like a terminal:
+ * nothing on screen is coloured except the line pills, so a colour always means
+ * "this line". Amber and red are reserved for late and cancelled.
+ */
+:root {
+  --background: oklch(0.175 0.006 265);
+  --foreground: oklch(0.9 0.008 90);
+  --card: oklch(0.22 0.007 265);
+  --muted: oklch(0.26 0.007 265);
+  --muted-foreground: oklch(0.68 0.008 90);
+  --primary: oklch(0.9 0.008 90);
+  --primary-foreground: oklch(0.2 0.006 265);
+  --border: oklch(0.3 0.008 265);
+  --ring: oklch(0.7 0.008 90);
+  --late: oklch(0.82 0.13 80);
+  --destructive: oklch(0.7 0.18 25);
+  --radius: 0.75rem;
+
+  /* SL's own line colours. */
+  --line-metro-red: #e4002b;
+  --line-metro-green: #00a651;
+  --line-metro-blue: #0078be;
+  --line-bus: #d71d24;
+  --line-bus-blue: #0078be;
+  --line-train: #ec6a37;
+  --line-tram: #b5b340;
+  --line-ferry: #00bce4;
+
+  color-scheme: dark;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+    /* Phone first, little content: one step larger than the browser default. */
+    font-size: 17px;
+    -webkit-text-size-adjust: 100%;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
+  }
+  button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    cursor: pointer;
+  }
+}
