@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown, LocateFixed, Search } from "lucide-react";
+import { ArrowLeft, LocateFixed, Search } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
  */
 export function AppHeader({
   title,
+  arrival,
   canGoBack,
   locating,
   onBack,
@@ -17,6 +18,8 @@ export function AppHeader({
 }: {
   /** Station name; empty before one is chosen. */
   title: string;
+  /** Clock time the followed departure arrives here, shown after the name. */
+  arrival?: string;
   canGoBack: boolean;
   locating: boolean;
   onBack: () => void;
@@ -46,11 +49,10 @@ export function AppHeader({
           )}
         >
           <h1 className="truncate text-xl font-semibold tracking-tight">{title || t.brand}</h1>
-          {title ? (
-            <ChevronDown aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-          ) : (
-            <Search aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-          )}
+          {arrival ? (
+            <span className="shrink-0 text-muted-foreground tabular-nums">({arrival})</span>
+          ) : null}
+          {title ? null : <Search aria-hidden className="size-4 shrink-0 text-muted-foreground" />}
         </button>
         <button
           type="button"

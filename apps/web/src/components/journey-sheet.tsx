@@ -29,7 +29,8 @@ export function JourneySheet({
   /** The station the list is narrowed to, if any: marked in the stop list. */
   towardsId: number | undefined;
   onTowards: (station: Station) => void;
-  onOpenStation: (station: Station) => void;
+  /** `arrival`: when this departure gets there, by the timetable like the stop row. */
+  onOpenStation: (station: Station, arrival: number) => void;
   onClose: () => void;
 }) {
   const [lookup, setLookup] = useState<Lookup>(null);
@@ -152,7 +153,7 @@ function StopList({
   stations: Stations | null;
   towardsId: number | undefined;
   onTowards: (station: Station) => void;
-  onOpenStation: (station: Station) => void;
+  onOpenStation: (station: Station, arrival: number) => void;
 }) {
   const last = journey.stops.length - 1;
   return (
@@ -211,7 +212,7 @@ function StopList({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onOpenStation({ id: target.id, name: target.name })}
+                  onClick={() => onOpenStation({ id: target.id, name: target.name }, stop.planned)}
                   aria-label={t.sheet.openStation(target.name)}
                   className="flex size-10 shrink-0 items-center justify-center rounded-full border bg-background outline-none focus-visible:ring-3 active:bg-muted"
                 >

@@ -10,6 +10,8 @@ import { store } from "./store";
 export type View = {
   station: Station | null;
   departure: Departure | null;
+  /** When the departure the user followed here arrives at this station. */
+  arrival?: number;
   /** History entries below this one that belong to the app. */
   depth: number;
 };
@@ -27,6 +29,8 @@ function linkedStation(): Station | null {
 
 function initialView(): { view: View; cold: boolean } {
   if (isView(history.state)) return { view: history.state, cold: false };
+  // A fresh start shows full lists; narrowings only last while walking back and forth.
+  store.clearTowards();
   const linked = linkedStation();
   return {
     view: { station: linked ?? store.last() ?? null, departure: null, depth: 0 },
@@ -65,10 +69,10 @@ export function useNav() {
 
   /** `replace`: swap the current entry instead of adding one (start-up, renames). */
   const openStation = useCallback(
-    (station: Station, options?: { replace?: boolean }) => {
+    (station: Station, options?: { replace?: boolean; arrival?: number }) => {
       const replace = options?.replace ?? false;
       const depth = current.current.depth + (replace ? 0 : 1);
-      go({ station, departure: null, depth }, replace);
+      go({ station, departure: null, arrival: options?.arrival, depth }, replace);
       if (station.name) store.visit(station);
       window.scrollTo(0, 0);
     },
@@ -83,6 +87,7 @@ export function useNav() {
   const openRoot = useCallback(
     (station: Station) => {
       const root = { station, departure: null, depth: 0 };
+      store.clearTowards();
       const depth = current.current.depth;
       if (depth === 0) go(root, true);
       else {

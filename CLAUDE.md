@@ -88,7 +88,11 @@ verified against the live APIs:
   header's station name and position button both open it: stations nearest first, a search
   box on top. Opening it never changes the station by itself (the position button once jumped
   straight to the nearest station, which surprised). A station picked there becomes the root:
-  `openRoot` rewinds the app's history, so there is no Back from it.
+  `openRoot` rewinds the app's history, so there is no Back from it. It also clears every
+  saved "till" narrowing, as does a fresh start: a narrowing lasts only while walking back
+  and forth from one root.
+- Following a departure to a stop (the arrow in the sheet) carries its timetable arrival time
+  in the view; the header shows it after the station name.
 - `journey.ts` (pure, tested) and `journey-lookup.ts` (network): matching a departure to a
   planner journey for the stop list of a row from the departures API. This is the fragile
   part (rows in a "till" list are not affected: they carry the planner's terminus id):

@@ -9,6 +9,7 @@ import { t } from "@/lib/i18n";
 import type { Mode, Station } from "@/lib/model";
 import { loadStations, type Stations } from "@/lib/stations";
 import { store } from "@/lib/store";
+import { formatClock } from "@/lib/time";
 import { useDepartures } from "@/lib/use-departures";
 import { useDirect } from "@/lib/use-direct";
 import { useLocation } from "@/lib/use-location";
@@ -60,6 +61,7 @@ export function App() {
   const select = useCallback(
     (next: Station) => {
       setPicking(false);
+      setTowardsState(undefined);
       openRoot(next);
     },
     [openRoot],
@@ -128,6 +130,7 @@ export function App() {
     <div className="flex min-h-dvh flex-col">
       <AppHeader
         title={station?.name ?? ""}
+        arrival={view.arrival ? formatClock(view.arrival) : undefined}
         canGoBack={view.depth > 0}
         locating={locating}
         onBack={back}
@@ -260,7 +263,7 @@ export function App() {
             setTowards(to);
             back();
           }}
-          onOpenStation={openStation}
+          onOpenStation={(to, arrival) => openStation(to, { arrival })}
           onClose={back}
         />
       ) : null}

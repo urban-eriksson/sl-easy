@@ -61,6 +61,10 @@ export const store = {
     else delete all[stationId];
     write({ towards: all });
   },
+  /** Forget every narrowing: a newly chosen station starts with its full list. */
+  clearTowards() {
+    write({ towards: {} });
+  },
   followsLocation(): boolean {
     return read().useLocation === true;
   },
