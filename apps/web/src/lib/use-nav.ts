@@ -47,7 +47,10 @@ export function useNav() {
   useEffect(() => {
     if (!isView(history.state)) history.replaceState(view, "", urlOf(view.station));
     const onPop = (e: PopStateEvent) => {
-      if (isView(e.state)) setState({ view: e.state, cold: false });
+      const root = pendingRoot.current;
+      pendingRoot.current = null;
+      if (root) go(root, true);
+      else if (isView(e.state)) setState({ view: e.state, cold: false });
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
@@ -72,6 +75,27 @@ export function useNav() {
     [go],
   );
 
+  /**
+   * Start over from a station picked in the station panel: it becomes the bottom
+   * of the app's history, so there is nothing to go back to.
+   */
+  const pendingRoot = useRef<View | null>(null);
+  const openRoot = useCallback(
+    (station: Station) => {
+      const root = { station, departure: null, depth: 0 };
+      const depth = current.current.depth;
+      if (depth === 0) go(root, true);
+      else {
+        // Rewind to the app's first entry; `onPop` swaps the station in when it lands.
+        pendingRoot.current = root;
+        history.go(-depth);
+      }
+      store.visit(station);
+      window.scrollTo(0, 0);
+    },
+    [go],
+  );
+
   const openDeparture = useCallback(
     (departure: Departure) => {
       go({ ...current.current, departure, depth: current.current.depth + 1 }, false);
@@ -81,5 +105,5 @@ export function useNav() {
 
   const back = useCallback(() => history.back(), []);
 
-  return { view, cold, openStation, openDeparture, back };
+  return { view, cold, openStation, openRoot, openDeparture, back };
 }

@@ -32,6 +32,7 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --animate-sheet-up: sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-fade-in: fade-in 0.18s ease-out;
+  --animate-panel-in: panel-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /*
@@ -69,6 +70,11 @@
 @keyframes sheet-up {
   from {
     transform: translateY(100%);
+  }
+}
+@keyframes panel-in {
+  from {
+    transform: translateX(100%);
   }
 }
 @keyframes fade-in {

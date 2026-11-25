@@ -1,10 +1,10 @@
 import { ArrowLeft, ChevronDown, LocateFixed, Search } from "lucide-react";
-import type { ReactNode } from "react";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 /**
- * Sticky top bar: the station name is the title and the way to change station.
+ * Sticky top bar: the station name is the title. It and the position button both
+ * open the station panel.
  * Safe-area padding keeps it under the iOS status bar in standalone mode.
  */
 export function AppHeader({
@@ -14,7 +14,6 @@ export function AppHeader({
   onBack,
   onPick,
   onLocate,
-  children,
 }: {
   /** Station name; empty before one is chosen. */
   title: string;
@@ -23,7 +22,6 @@ export function AppHeader({
   onBack: () => void;
   onPick: () => void;
   onLocate: () => void;
-  children?: ReactNode;
 }) {
   return (
     <header className="sticky top-0 z-30 bg-background/85 pt-[env(safe-area-inset-top)] backdrop-blur-md">
@@ -69,7 +67,6 @@ export function AppHeader({
           />
         </button>
       </div>
-      {children}
       {/* Horizon line: the header's only decoration. */}
       <div
         aria-hidden

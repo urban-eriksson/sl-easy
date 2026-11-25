@@ -84,6 +84,11 @@ verified against the live APIs:
   JSON (`src/data/stations.json`, generated). Nearest-station lookup and search are local and
   instant. After the user has asked for their position once, a cold start (no `?s=`) asks
   again and switches to the nearest station.
+- The station panel (`station-picker.tsx`) is the one place to choose where to stand. The
+  header's station name and position button both open it: stations nearest first, a search
+  box on top. Opening it never changes the station by itself (the position button once jumped
+  straight to the nearest station, which surprised). A station picked there becomes the root:
+  `openRoot` rewinds the app's history, so there is no Back from it.
 - `journey.ts` (pure, tested) and `journey-lookup.ts` (network): matching a departure to a
   planner journey for the stop list of a row from the departures API. This is the fragile
   part (rows in a "till" list are not affected: they carry the planner's terminus id):

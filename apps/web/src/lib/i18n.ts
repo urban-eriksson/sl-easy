@@ -4,19 +4,19 @@ export const t = {
   nav: {
     back: "Tillbaka",
     pickStation: "Byt hållplats",
-    locate: "Närmaste hållplats",
+    locate: "Hållplatser nära dig",
     close: "Stäng",
   },
   welcome: {
     title: "Var åker du ifrån?",
     body: "Se nästa avgång från hållplatsen där du står.",
-    locate: "Använd min position",
-    search: "Sök hållplats",
+    pick: "Välj hållplats",
   },
   picker: {
     placeholder: "Sök hållplats",
     nearby: "Nära dig",
     recent: "Senaste",
+    locating: "Hittar din position …",
     noHits: "Ingen hållplats med det namnet",
     loading: "Läser in hållplatser …",
     failed: "Kunde inte läsa in hållplatserna.",

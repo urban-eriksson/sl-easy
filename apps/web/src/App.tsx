@@ -1,10 +1,9 @@
-import { ArrowRight, LocateFixed, Search, X } from "lucide-react";
+import { ArrowRight, MapPin, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alerts } from "@/components/alerts";
 import { AppHeader } from "@/components/app-header";
 import { DepartureList } from "@/components/departure-list";
 import { JourneySheet } from "@/components/journey-sheet";
-import { type Chip, StationChips } from "@/components/station-chips";
 import { StationPicker } from "@/components/station-picker";
 import { t } from "@/lib/i18n";
 import type { Mode, Station } from "@/lib/model";
@@ -16,11 +15,8 @@ import { useLocation } from "@/lib/use-location";
 import { useNav } from "@/lib/use-nav";
 import { useNow } from "@/lib/use-now";
 
-const NEARBY_CHIPS = 3;
-const NEARBY_IN_PICKER = 6;
-
 export function App() {
-  const { view, cold, openStation, openDeparture, back } = useNav();
+  const { view, cold, openStation, openRoot, openDeparture, back } = useNav();
   const station = view.station;
   const now = useNow(15_000);
 
@@ -38,15 +34,10 @@ export function App() {
   }, [stations, station, openStation]);
 
   const { position, locating, problem: locationProblem, locate } = useLocation();
-  const nearby = useMemo<Chip[]>(
-    () =>
-      stations && position
-        ? stations
-            .nearest(position.lat, position.lon, NEARBY_IN_PICKER)
-            .map((p) => ({ id: p.id, name: p.name, distance: p.distance }))
-        : [],
-    [stations, position],
-  );
+  const nearest = useMemo<Station | null>(() => {
+    const p = stations && position ? stations.nearest(position.lat, position.lon, 1)[0] : null;
+    return p ? { id: p.id, name: p.name } : null;
+  }, [stations, position]);
 
   // Opened from the home screen, not from a link: go to the stop the user is standing at.
   const follow = useRef(cold && store.followsLocation());
@@ -54,35 +45,28 @@ export function App() {
     if (follow.current) locate();
   }, [locate]);
   useEffect(() => {
-    if (!follow.current || nearby.length === 0) return;
+    if (!follow.current || !nearest) return;
     follow.current = false;
-    if (nearby[0].id !== station?.id) openStation(nearby[0], { replace: true });
-  }, [nearby, station, openStation]);
+    if (nearest.id !== station?.id) openStation(nearest, { replace: true });
+  }, [nearest, station, openStation]);
 
   const [picking, setPicking] = useState(false);
+  // The station panel: nothing changes until a station is picked in it.
+  const pick = useCallback(() => {
+    follow.current = false;
+    setPicking(true);
+    locate();
+  }, [locate]);
   const select = useCallback(
     (next: Station) => {
-      follow.current = false;
       setPicking(false);
-      if (next.id !== station?.id) openStation(next);
+      openRoot(next);
     },
-    [station, openStation],
+    [openRoot],
   );
-  const locateAndGo = useCallback(async () => {
-    follow.current = false;
-    const found = await locate();
-    if (!found) return;
-    const all = stations ?? (await loadStations().catch(() => null));
-    const nearest = all?.nearest(found.lat, found.lon, 1)[0];
-    if (nearest && nearest.id !== station?.id) openStation({ id: nearest.id, name: nearest.name });
-  }, [locate, stations, station, openStation]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: recents change when the station does
   const recent = useMemo(() => store.recent(), [station]);
-  const chips = useMemo<Chip[]>(() => {
-    const near = nearby.slice(0, NEARBY_CHIPS);
-    return [...near, ...recent.filter((r) => !near.some((n) => n.id === r.id))];
-  }, [nearby, recent]);
 
   // "Till Hornstull": the station the list is narrowed to, saved per station.
   // `towardsState` lags a render behind a station change.
@@ -147,21 +131,19 @@ export function App() {
         canGoBack={view.depth > 0}
         locating={locating}
         onBack={back}
-        onPick={() => setPicking(true)}
-        onLocate={locateAndGo}
-      >
-        <StationChips chips={chips} activeId={station?.id} onSelect={select} />
-      </AppHeader>
+        onPick={pick}
+        onLocate={pick}
+      />
 
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-3 pb-8 sm:px-6">
-        {locationProblem ? (
+        {locationProblem && !picking ? (
           <p role="alert" className="mb-3 rounded-lg border bg-card px-3 py-2.5 text-sm">
             {t.location[locationProblem]}
           </p>
         ) : null}
 
         {!station ? (
-          <Welcome onLocate={locateAndGo} onSearch={() => setPicking(true)} locating={locating} />
+          <Welcome onPick={pick} />
         ) : (
           <>
             {fresh ? <Alerts alerts={board.alerts} /> : null}
@@ -260,8 +242,10 @@ export function App() {
           stations={stations}
           stationsFailed={stationsFailed}
           position={position}
-          nearby={nearby}
+          locating={locating}
+          problem={locationProblem}
           recent={recent}
+          activeId={station?.id}
           onSelect={select}
           onClose={() => setPicking(false)}
         />
@@ -284,38 +268,19 @@ export function App() {
   );
 }
 
-function Welcome({
-  onLocate,
-  onSearch,
-  locating,
-}: {
-  onLocate: () => void;
-  onSearch: () => void;
-  locating: boolean;
-}) {
+function Welcome({ onPick }: { onPick: () => void }) {
   return (
     <div className="py-12 text-center">
       <h2 className="text-2xl font-semibold">{t.welcome.title}</h2>
       <p className="mt-2 text-muted-foreground">{t.welcome.body}</p>
-      <div className="mx-auto mt-8 flex max-w-xs flex-col gap-3">
-        <button
-          type="button"
-          onClick={onLocate}
-          disabled={locating}
-          className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-medium text-primary-foreground outline-none focus-visible:ring-3 disabled:opacity-60"
-        >
-          <LocateFixed aria-hidden className="size-4" />
-          {t.welcome.locate}
-        </button>
-        <button
-          type="button"
-          onClick={onSearch}
-          className="flex items-center justify-center gap-2 rounded-lg border bg-card px-4 py-3 font-medium outline-none focus-visible:ring-3"
-        >
-          <Search aria-hidden className="size-4" />
-          {t.welcome.search}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={onPick}
+        className="mx-auto mt-8 flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground outline-none focus-visible:ring-3"
+      >
+        <MapPin aria-hidden className="size-4" />
+        {t.welcome.pick}
+      </button>
     </div>
   );
 }
