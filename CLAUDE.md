@@ -42,7 +42,7 @@ npx vitest run src/lib/journey.test.ts   # one file
 npx vitest run -t "pickLeg"              # by name
 npm run build
 npm run stations                         # regenerate src/data/stations.json from SL
-npm run icons                            # PNG icons from public/favicon.svg
+npm run icons                            # icons from icon-source.jpg
 ```
 
 ```bash
@@ -102,9 +102,11 @@ each verified against the live services:
 `App.tsx` wires six hooks; components are presentational.
 
 - `use-nav`: the view is `{ station, departure }` and every step is a browser history entry
-  (`?s=<site id>`, the rest in `history.state`). Opening the sheet pushes; tapping a stop in
-  the sheet pushes that station. So Back walks station → sheet → station. History calls must
-  stay out of state updaters (StrictMode runs those twice).
+  (`?s=<site id>`, the rest in `history.state`). Opening the sheet pushes; following a
+  departure to a stop (the arrow in the sheet) replaces the sheet's entry with that station.
+  So Back closes an open sheet, and from a followed station it lands on the previous
+  station's list with no sheet: the next thing wanted there is another departure. History
+  calls must stay out of state updaters (StrictMode runs those twice).
 - `use-departures`: one station's board, refetched every 30 s while visible. A failed refresh
   keeps the old list and reports the problem.
 - `use-direct`: the "Till Hornstull" list. Tapping a stop in the sheet narrows the list to
@@ -163,8 +165,8 @@ each verified against the live services:
 - Colour means a line: the pills use SL's line colours (`--line-*` in `index.css`) and
   nothing else in the lists is coloured. Text is ash white; amber is "late", red is "cancelled".
 - Pink (`--brand`, #ffbbdd) is the app's neon sign and stays out of the lists: the icon,
-  the station name in the header and the line under it. The icon's "SL" is Great Vibes
-  (OFL) as an outline in `public/favicon.svg`; `npm run icons` renders the PNGs and the ico.
+  the station name in the header and the line under it. The icon is the user's artwork,
+  `apps/web/icon-source.jpg`; `npm run icons` cuts it into the PNGs and the ico.
 - The timetable time leads every row; live data (minutes left, `+3`) is the smaller line.
 - `public/sw.js` is network-first for the page and cache-first for fingerprinted assets.
   Nothing needs bumping on release.

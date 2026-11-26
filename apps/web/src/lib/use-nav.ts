@@ -5,7 +5,7 @@ import { store } from "./store";
 /**
  * Where the user is: a station's departures, optionally with one departure's
  * journey sheet open on top. Each step is a browser history entry, so the back
- * button (and the header arrow) walks back through station -> sheet -> station.
+ * button (and the header arrow) closes the sheet, or walks back station by station.
  */
 export type View = {
   station: Station | null;
@@ -71,10 +71,14 @@ export function useNav() {
   // A change to make to the entry a `history.back()` / `go()` lands on, once it has landed.
   const landing = useRef<((landed: View) => View) | null>(null);
 
-  /** `replace`: swap the current entry instead of adding one (start-up, renames). */
+  /**
+   * `replace`: swap the current entry instead of adding one (start-up, renames).
+   * A station opened from the sheet takes the sheet's entry, so Back from it lands
+   * on the list the departure was picked from, not on the sheet again.
+   */
   const openStation = useCallback(
     (station: Station, options?: { replace?: boolean; arrival?: number }) => {
-      const replace = options?.replace ?? false;
+      const replace = options?.replace ?? current.current.departure !== null;
       const depth = current.current.depth + (replace ? 0 : 1);
       go({ station, departure: null, arrival: options?.arrival, depth }, replace);
       if (station.name) store.visit(station);
