@@ -1,4 +1,4 @@
-import { ArrowRight, MapPin, X } from "lucide-react";
+import { MapPin, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alerts } from "@/components/alerts";
 import { AppHeader } from "@/components/app-header";
@@ -17,7 +17,7 @@ import { useNav } from "@/lib/use-nav";
 import { useNow } from "@/lib/use-now";
 
 export function App() {
-  const { view, cold, openStation, openRoot, openDeparture, back } = useNav();
+  const { view, cold, openStation, openRoot, openDeparture, setTowards, back } = useNav();
   const station = view.station;
   const now = useNow(15_000);
 
@@ -61,7 +61,6 @@ export function App() {
   const select = useCallback(
     (next: Station) => {
       setPicking(false);
-      setTowardsState(undefined);
       openRoot(next);
     },
     [openRoot],
@@ -70,33 +69,26 @@ export function App() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: recents change when the station does
   const recent = useMemo(() => store.recent(), [station]);
 
-  // "Till Hornstull": the station the list is narrowed to, saved per station.
-  // `towardsState` lags a render behind a station change.
-  const [towardsState, setTowardsState] = useState<{ from: number; to: Station | null }>();
-  const towards = useMemo(
-    () =>
-      station
-        ? towardsState?.from === station.id
-          ? towardsState.to
-          : store.towards(station.id)
-        : null,
-    [station, towardsState],
-  );
-  const setTowards = useCallback(
-    (to: Station | null) => {
-      if (!station) return;
-      store.setTowards(station.id, to);
-      setTowardsState({ from: station.id, to });
-      window.scrollTo(0, 0);
-    },
-    [station],
-  );
+  const towards = view.towards ?? null;
+  // Followed here on a departure: only what leaves after it has arrived is of interest.
+  const after = view.arrival !== undefined && view.arrival > now ? view.arrival : undefined;
 
   const board = useDepartures(station?.id ?? null);
   const fresh = board.stationId === station?.id;
-  const live = fresh ? board.departures : [];
-  const modes = useMemo<Mode[]>(() => [...new Set(live.map((d) => d.line.mode))], [live]);
-  const direct = useDirect(station?.id ?? null, towards?.id ?? null, modes, stations, now);
+  const all = fresh ? board.departures : [];
+  const live = useMemo(
+    () => (after === undefined ? all : all.filter((d) => d.expected >= after)),
+    [all, after],
+  );
+  const modes = useMemo<Mode[]>(() => [...new Set(all.map((d) => d.line.mode))], [all]);
+  const direct = useDirect(
+    station?.id ?? null,
+    towards?.id ?? null,
+    view.arrival,
+    modes,
+    stations,
+    now,
+  );
   const shown = towards ? direct.departures : live;
 
   // Page in more while the end of a "till" list is on screen.
@@ -162,14 +154,6 @@ export function App() {
                   {t.towards.label(towards.name)}
                   <X aria-hidden className="size-3.5" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => openStation(towards)}
-                  className="flex items-center gap-1.5 rounded-full border bg-card py-1 pr-2.5 pl-3 text-sm outline-none focus-visible:ring-3"
-                >
-                  {t.towards.go(towards.name)}
-                  <ArrowRight aria-hidden className="size-3.5 text-muted-foreground" />
-                </button>
               </div>
             ) : null}
 
@@ -204,13 +188,17 @@ export function App() {
                     </p>
                   ) : null
                 ) : (
-                  <p className="py-10 text-center text-muted-foreground">{t.list.empty}</p>
+                  <p className="py-10 text-center text-muted-foreground">
+                    {after === undefined ? t.list.empty : t.list.emptyAfter(formatClock(after))}
+                  </p>
                 )}
                 <div ref={sentinel} />
                 <p className="pt-5 text-center text-sm text-muted-foreground">
                   {!towards
                     ? live.length > 0
-                      ? t.list.scope
+                      ? after === undefined
+                        ? t.list.scope
+                        : t.list.scopeAfter(formatClock(after))
                       : null
                     : directDone
                       ? shown.length > 0
@@ -259,10 +247,7 @@ export function App() {
           departure={sheet}
           stations={stations}
           towardsId={towards?.id}
-          onTowards={(to) => {
-            setTowards(to);
-            back();
-          }}
+          onTowards={setTowards}
           onOpenStation={(to, arrival) => openStation(to, { arrival })}
           onClose={back}
         />

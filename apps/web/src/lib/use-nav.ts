@@ -12,6 +12,8 @@ export type View = {
   departure: Departure | null;
   /** When the departure the user followed here arrives at this station. */
   arrival?: number;
+  /** "Till Hornstull": the station this station's list is narrowed to. */
+  towards?: Station | null;
   /** History entries below this one that belong to the app. */
   depth: number;
 };
@@ -29,8 +31,6 @@ function linkedStation(): Station | null {
 
 function initialView(): { view: View; cold: boolean } {
   if (isView(history.state)) return { view: history.state, cold: false };
-  // A fresh start shows full lists; narrowings only last while walking back and forth.
-  store.clearTowards();
   const linked = linkedStation();
   return {
     view: { station: linked ?? store.last() ?? null, departure: null, depth: 0 },
@@ -51,10 +51,11 @@ export function useNav() {
   useEffect(() => {
     if (!isView(history.state)) history.replaceState(view, "", urlOf(view.station));
     const onPop = (e: PopStateEvent) => {
-      const root = pendingRoot.current;
-      pendingRoot.current = null;
-      if (root) go(root, true);
-      else if (isView(e.state)) setState({ view: e.state, cold: false });
+      if (!isView(e.state)) return;
+      const change = landing.current;
+      landing.current = null;
+      if (change) go(change(e.state), true);
+      else setState({ view: e.state, cold: false });
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
@@ -66,6 +67,9 @@ export function useNav() {
     current.current = next;
     setState({ view: next, cold: false });
   }, []);
+
+  // A change to make to the entry a `history.back()` / `go()` lands on, once it has landed.
+  const landing = useRef<((landed: View) => View) | null>(null);
 
   /** `replace`: swap the current entry instead of adding one (start-up, renames). */
   const openStation = useCallback(
@@ -83,16 +87,14 @@ export function useNav() {
    * Start over from a station picked in the station panel: it becomes the bottom
    * of the app's history, so there is nothing to go back to.
    */
-  const pendingRoot = useRef<View | null>(null);
   const openRoot = useCallback(
     (station: Station) => {
       const root = { station, departure: null, depth: 0 };
-      store.clearTowards();
       const depth = current.current.depth;
       if (depth === 0) go(root, true);
       else {
         // Rewind to the app's first entry; `onPop` swaps the station in when it lands.
-        pendingRoot.current = root;
+        landing.current = () => root;
         history.go(-depth);
       }
       store.visit(station);
@@ -108,7 +110,23 @@ export function useNav() {
     [go],
   );
 
+  /**
+   * Narrow the station's list to the direct ways to `to`, or widen it again with null.
+   * It lives in the station's history entry: Back to a station finds its narrowing as
+   * it was, and a station opened anew has none. From the sheet, this closes the sheet.
+   */
+  const setTowards = useCallback(
+    (to: Station | null) => {
+      if (current.current.departure) {
+        landing.current = (landed) => ({ ...landed, towards: to });
+        history.back();
+      } else go({ ...current.current, towards: to }, true);
+      window.scrollTo(0, 0);
+    },
+    [go],
+  );
+
   const back = useCallback(() => history.back(), []);
 
-  return { view, cold, openStation, openRoot, openDeparture, back };
+  return { view, cold, openStation, openRoot, openDeparture, setTowards, back };
 }

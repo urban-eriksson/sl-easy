@@ -7,8 +7,6 @@ const MAX_RECENT = 6;
 type Saved = {
   last?: Station;
   recent?: Station[];
-  /** Per station id: the station the list is narrowed to ("till Hornstull"). */
-  towards?: Record<string, Station>;
   /** Set once the user has asked for their position: from then on it is used at start. */
   useLocation?: boolean;
 };
@@ -50,20 +48,6 @@ export const store = {
     const s = { id: station.id, name: station.name };
     const recent = [s, ...store.recent().filter((r) => r.id !== s.id)].slice(0, MAX_RECENT);
     write({ last: s, recent });
-  },
-  towards(stationId: number): Station | null {
-    const s = read().towards?.[stationId];
-    return isStation(s) ? s : null;
-  },
-  setTowards(stationId: number, destination: Station | null) {
-    const all = { ...read().towards };
-    if (destination) all[stationId] = { id: destination.id, name: destination.name };
-    else delete all[stationId];
-    write({ towards: all });
-  },
-  /** Forget every narrowing: a newly chosen station starts with its full list. */
-  clearTowards() {
-    write({ towards: {} });
   },
   followsLocation(): boolean {
     return read().useLocation === true;

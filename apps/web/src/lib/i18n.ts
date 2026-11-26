@@ -39,6 +39,10 @@ export const t = {
     loadingLater: "Hämtar avgångar …",
     noMoreLater: "Inga fler avgångar hittades",
     noDirect: (name: string) => `Inga direkta avgångar till ${name}`,
+    emptyAfter: (time: string) =>
+      `Ingen av de avgångar SL visar just nu går efter ${time}. Titta igen när du är närmare.`,
+    scopeAfter: (time: string) =>
+      `Listan visar avgångar efter ${time}, bland de tre närmaste per linje och riktning. Linjer som går tätt kan saknas tills du är närmare i tid. Välj en hållplats i en avgång för att se alla avgångar dit.`,
     /** The departures API gives three per line and direction; say so. */
     scope:
       "Listan visar de tre närmaste avgångarna per linje och riktning. Tryck på en avgång och välj en hållplats för att se alla avgångar dit.",
@@ -46,7 +50,6 @@ export const t = {
   towards: {
     label: (name: string) => `Till ${name}`,
     clear: "Visa alla avgångar",
-    go: (name: string) => `Avgångar från ${name}`,
   },
   alerts: {
     summary: (n: number) => (n === 1 ? "1 trafikmeddelande" : `${n} trafikmeddelanden`),

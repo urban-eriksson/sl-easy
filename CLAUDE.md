@@ -74,8 +74,9 @@ verified against the live APIs:
 - `use-departures`: one station's board, refetched every 30 s while visible. A failed refresh
   keeps the old list and reports the problem.
 - `use-direct`: the "Till Hornstull" list. Tapping a stop in the sheet narrows the list to
-  every direct way from this station to that one (saved per station); the arrow beside the
-  stop, or "Avgångar från …" above the list, moves to that station instead. Those are two
+  every direct way from this station to that one; the arrow beside the stop moves to that
+  station instead. The narrowing lives in the station's history entry (`view.towards`), so
+  Back to a station finds it as it was and a station opened anew has none. Those are two
   different operations on purpose. The rows come from the planner (both stations are known
   by id, so nothing is guessed), paged as the user scrolls: an IntersectionObserver sentinel
   in `App` drives it. One stream per transport mode, because the planner hides journeys it
@@ -92,11 +93,12 @@ verified against the live APIs:
   header's station name and position button both open it: stations nearest first, a search
   box on top. Opening it never changes the station by itself (the position button once jumped
   straight to the nearest station, which surprised). A station picked there becomes the root:
-  `openRoot` rewinds the app's history, so there is no Back from it. It also clears every
-  saved "till" narrowing, as does a fresh start: a narrowing lasts only while walking back
-  and forth from one root.
+  `openRoot` rewinds the app's history, so there is no Back from it.
 - Following a departure to a stop (the arrow in the sheet) carries its timetable arrival time
-  in the view; the header shows it after the station name.
+  in the view (`view.arrival`); the header shows it after the station name and the lists
+  start there. A "till" list pages from that time. The plain list can only drop the rows
+  that leave earlier, out of each line's next three, so a frequent line may be missing until
+  the arrival is near: the note under the list says so.
 - `journey.ts` (pure, tested) and `journey-lookup.ts` (network): matching a departure to a
   planner journey for the stop list of a row from the departures API. This is the fragile
   part (rows in a "till" list are not affected: they carry the planner's terminus id):

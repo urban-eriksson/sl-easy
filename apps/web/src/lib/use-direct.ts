@@ -25,12 +25,14 @@ type Stream = { rows: Departure[]; next: number; empty: number; done: boolean };
 export function useDirect(
   from: number | null,
   to: number | null,
+  /** Start the list here instead of now: when the user gets to `from`. */
+  start: number | undefined,
   /** The modes that leave from `from`; ignored after the first non-empty value per pair. */
   modes: Mode[],
   stations: Stations | null,
   now: number,
 ) {
-  const scope = from !== null && to !== null ? `${from}>${to}` : "";
+  const scope = from !== null && to !== null ? `${from}>${to}@${start ?? ""}` : "";
   const [state, setState] = useState<{ scope: string; streams: Partial<Record<Mode, Stream>> }>({
     scope,
     streams: {},
@@ -55,7 +57,8 @@ export function useDirect(
     };
   }, [scope]);
 
-  const cursor = (mode: Mode) => streams[mode]?.next ?? Date.now() - GRACE_MS;
+  const first = useCallback(() => Math.max(Date.now(), start ?? 0) - GRACE_MS, [start]);
+  const cursor = (mode: Mode) => streams[mode]?.next ?? first();
   const open = streamModes.filter((m) => !streams[m]?.done);
   const done = scope !== "" && streamModes.length > 0 && open.length === 0;
 
@@ -117,9 +120,9 @@ export function useDirect(
   /** Bring the live times of the nearest departures up to date. */
   const refresh = useCallback(() => {
     for (const mode of streamModes) {
-      if (streams[mode]?.rows.length) run(mode, Date.now() - GRACE_MS, true);
+      if (streams[mode]?.rows.length) run(mode, first(), true);
     }
-  }, [run, streams, streamModes]);
+  }, [run, streams, streamModes, first]);
 
   const departures = useMemo(() => {
     const frontier = Math.min(
