@@ -2,6 +2,7 @@
  * One-off: renders public/favicon.svg to the PNG sizes the manifest and iOS need.
  * Run `npm run icons` after editing favicon.svg, commit the output.
  */
+import { writeFileSync } from "node:fs";
 import sharp from "sharp";
 
 const BG = "#101114";
@@ -26,3 +27,17 @@ for (const { size, out, inset = 0 } of targets) {
     .toFile(out);
   console.log(`wrote ${out} (${size}x${size})`);
 }
+
+// favicon.ico for browsers that skip the SVG: one 32px PNG in an ICO wrapper.
+const png = await sharp("public/favicon.svg", { density: 300 }).resize(32, 32).png().toBuffer();
+const header = Buffer.alloc(22);
+header.writeUInt16LE(1, 2); // type: icon
+header.writeUInt16LE(1, 4); // one image
+header.writeUInt8(32, 6); // width
+header.writeUInt8(32, 7); // height
+header.writeUInt16LE(1, 10); // colour planes
+header.writeUInt16LE(32, 12); // bits per pixel
+header.writeUInt32LE(png.length, 14);
+header.writeUInt32LE(22, 18); // offset of the image
+writeFileSync("public/favicon.ico", Buffer.concat([header, png]));
+console.log("wrote public/favicon.ico (32x32)");

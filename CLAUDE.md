@@ -161,7 +161,10 @@ each verified against the live services:
 
 - All copy is Swedish and lives in `src/lib/i18n.ts`.
 - Colour means a line: the pills use SL's line colours (`--line-*` in `index.css`) and
-  nothing else is coloured. Text is ash white; amber is "late", red is "cancelled".
+  nothing else in the lists is coloured. Text is ash white; amber is "late", red is "cancelled".
+- Pink (`--brand`, #ffbbdd) is the app's neon sign and stays out of the lists: the icon,
+  the station name in the header and the line under it. The icon's "SL" is Great Vibes
+  (OFL) as an outline in `public/favicon.svg`; `npm run icons` renders the PNGs and the ico.
 - The timetable time leads every row; live data (minutes left, `+3`) is the smaller line.
 - `public/sw.js` is network-first for the page and cache-first for fingerprinted assets.
   Nothing needs bumping on release.

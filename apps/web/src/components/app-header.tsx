@@ -48,7 +48,9 @@ export function AppHeader({
             canGoBack ? "pl-1" : "pl-2",
           )}
         >
-          <h1 className="truncate text-xl font-semibold tracking-tight">{title || t.brand}</h1>
+          <h1 className="truncate text-xl font-semibold tracking-tight text-brand">
+            {title || t.brand}
+          </h1>
           {arrival ? (
             <span className="shrink-0 text-muted-foreground tabular-nums">({arrival})</span>
           ) : null}
@@ -69,10 +71,10 @@ export function AppHeader({
           />
         </button>
       </div>
-      {/* Horizon line: the header's only decoration. */}
+      {/* Horizon line: a strip of the neon sign. */}
       <div
         aria-hidden
-        className="h-px bg-gradient-to-r from-transparent via-foreground/25 to-transparent"
+        className="h-px bg-gradient-to-r from-transparent via-brand/60 to-transparent shadow-[0_0_10px_var(--brand-glow)]"
       />
     </header>
   );
