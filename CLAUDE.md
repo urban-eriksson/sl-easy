@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SL Eazy: the fastest way to see when the next bus or train leaves from where you stand.
 A mobile-first, Swedish-language PWA for Stockholm public transport, hosted at
-https://sl.korist.se (S3 + CloudFront, first deployed 2026-11-25; the old plain-JS version may still be on
-GitHub Pages until `main` is pushed).
-No backend: the browser calls SL's public APIs directly, with no API key.
+https://sl.korist.se (S3 + CloudFront, first deployed 2026-11-25).
+No API of its own: the browser calls SL's public APIs directly, with no key, and reads
+timetable files that a nightly job publishes beside the app.
 
 Two things to protect: it opens on the nearest station without being asked, and it is fast.
 It is a departure board you can walk through station by station, not a trip planner.
@@ -18,8 +18,16 @@ It is a departure board you can walk through station by station, not a trip plan
 - `apps/web`: the app. Vite + React 19 + TypeScript + Tailwind v4, Biome, Vitest. No router
   and no component library: the house look (fonts, header, tokens) is copied from
   `../sopkoll` / `../bike-my-day`, dark only.
-- `infra`: CDK in Python (uv). `SlEasyCert` (us-east-1) and `SlEasy` (eu-north-1).
+- `timetable`: the nightly job, Python standard library only. `build_timetable.py` cuts
+  SL's GTFS zip into per-station files, `run.sh` downloads and publishes, `provision.sh`
+  installs both on the shared dev box as `sl-easy-timetable.timer` (03:00 Stockholm).
+- `infra`: CDK in Python (uv). `SlEasyCert` (us-east-1) and `SlEasy` (eu-north-1): the web
+  bucket, the data bucket behind `/tt/*`, and a grant on the dev box's role.
 - `scripts/deploy-web.sh`: refresh stations, check, test, build, `cdk deploy SlEasy`.
+- `scripts/deploy-timetable.sh`: test and install the job on the box over S3 + SSM;
+  `--run` also runs it now. `scripts/push-trafiklab-key.sh` puts the key in SSM.
+
+The app is "SL Eazy" to its users; the repo, stacks, box user and paths say `sl-easy`.
 
 ## Commands
 
@@ -37,22 +45,48 @@ npm run stations                         # regenerate src/data/stations.json fro
 npm run icons                            # PNG icons from public/favicon.svg
 ```
 
-Never run `scripts/deploy-web.sh` or `cdk deploy` without being asked. The first deploy also
-needs the certificate stack (see the script's header).
+```bash
+python3 -m unittest discover -s timetable   # the generator's tests (repo root)
+python3 timetable/build_timetable.py --zip sl.zip --sites apps/web/src/data/stations.json --out /tmp/tt
+```
 
-## The two SL APIs, and what they force
+`npm run dev` proxies `/tt` to the live site, so development uses the published timetable;
+`TT_PROXY=http://localhost:…` points it at a local build instead.
 
-Read the header of `src/lib/sl.ts`. Everything about the UI follows from these limits, each
-verified against the live APIs:
+Never run `scripts/deploy-web.sh`, `scripts/deploy-timetable.sh` or `cdk deploy` without
+being asked. The first deploy also needs the certificate stack (see the script's header).
+
+The dev box belongs to `../korist-infra` (see `~/repos/CLAUDE.md`): this repo only installs
+its own user, `/opt/sl-easy`, `/var/lib/sl-easy`, `/etc/sl-easy` and its one service and
+timer there. Anything else about the box goes through `~/repos/INFRA-INBOX.md`.
+
+Trafiklab allows **65 downloads of the GTFS zip per 30 days**. `run.sh` downloads at most
+once per day however often it runs; when experimenting, reuse one local copy of the zip
+(key in `~/repos/GTFS_regional_static_data.txt`, never in the repo).
+
+## Where the data comes from, and what each source forces
+
+Three sources. The timetable files are the substance of the plain list; the two SL APIs
+(read the header of `src/lib/sl.ts`) add live data and the "till" lists. Their limits are
+each verified against the live services:
+
+- **Timetable files** (`/tt/...`, from SL's GTFS feed via Trafiklab, rebuilt nightly):
+  every departure from every station for yesterday's service day and eight days on, plus
+  each line's stops and running times. `current.json` names the live version and which
+  services run on which day; `v/<yyyymmdd>/s/<site>.json` is a station, `r/<n>.json` a
+  line. Layouts are documented in `timetable/build_timetable.py`; `lib/timetable.ts` reads
+  them. A version is immutable and expires from S3 after nine days. GTFS times count from
+  the start of the service day and run past 24:00.
 
 - **Departures** (`transport.integration.sl.se/v1/sites/{id}/departures`) returns at most
   **three departures per line and direction**, whatever `forecast` is (max 1200 minutes, 400
-  above). It answers "what leaves next", not "what leaves at 14:00". So the unfiltered list
-  is each line's next three, and it says so at the bottom. Do not build a time-window or
-  scroll-for-later feature on this API: two earlier attempts did and showed a thinned-out list.
+  above). It answers "what leaves next", not "what leaves at 14:00". It is the live layer
+  over the timetable, and the whole list only when a station has no timetable file (the
+  note at the bottom then says so). Do not build a time-window or scroll-for-later feature
+  on this API: two earlier attempts did and showed a thinned-out list.
 - **Journey planner** (`journeyplanner.integration.sl.se/v2/trips`) returns at most three
   journeys per call (4 is a 400) but takes any start time and carries each journey's stops.
-  It is the source for the stops in the sheet and for paging a filtered list into the future.
+  It is the source for a "till" list, and for the stops of a row that has no timetable trip.
   It answers with one journey just before the asked time and two after.
 - The departures API gives Stockholm wall-clock time with no offset; the planner gives UTC.
   `lib/time.ts` converts; never `new Date()` an SL departure string directly.
@@ -65,7 +99,7 @@ verified against the live APIs:
 
 ## Architecture
 
-`App.tsx` wires five hooks; components are presentational.
+`App.tsx` wires six hooks; components are presentational.
 
 - `use-nav`: the view is `{ station, departure }` and every step is a browser history entry
   (`?s=<site id>`, the rest in `history.state`). Opening the sheet pushes; tapping a stop in
@@ -96,11 +130,19 @@ verified against the live APIs:
   `openRoot` rewinds the app's history, so there is no Back from it.
 - Following a departure to a stop (the arrow in the sheet) carries its timetable arrival time
   in the view (`view.arrival`); the header shows it after the station name and the lists
-  start there. A "till" list pages from that time. The plain list can only drop the rows
-  that leave earlier, out of each line's next three, so a frequent line may be missing until
-  the arrival is near: the note under the list says so.
+  start there. A "till" list pages from that time.
+- `use-timetable` + `timetable.ts`: the plain list. A station's timetable is expanded a
+  service day at a time and `mergeLive` lays the board over it: a board departure found in
+  the timetable (same stop area, timetable time within 45 s, same line and platform) gives
+  that row its live time, state and sign; one not found becomes a row of its own. Against
+  the live board about 98 % match. The rest are mostly cancelled metro runs the timetable
+  never had, and now and then a metro train whose timetable time differs between the two
+  sources, which then shows twice. `App` shows 60 rows and pages on as the user scrolls,
+  day after day to the end of the files. Timetable rows carry a `trip` reference, so the
+  sheet reads their stops from the line's file: instant, and right for every sign.
 - `journey.ts` (pure, tested) and `journey-lookup.ts` (network): matching a departure to a
-  planner journey for the stop list of a row from the departures API. This is the fragile
+  planner journey for the stop list of a row that came from the departures API alone (no
+  timetable file, or a board departure the timetable does not have). This is the fragile
   part (rows in a "till" list are not affected: they carry the planner's terminus id):
   - A departure only carries its sign text ("Björknäs"), so the destination has to be guessed:
     stations with that exact name nearest-first, then names beginning with it, then the
@@ -112,9 +154,8 @@ verified against the live APIs:
   - Queries are restricted to the departure's mode for bus and metro, or the planner answers
     a bus departure with the faster metro.
   - It fails for bus signs that match no stop name in SL's list ("Hornsberg", "Västra
-    Orminge"). The sheet then says the stops could not be found. A real fix needs line
-    patterns from Trafiklab's GTFS data (API key, build-time processing); name tricks have
-    been exhausted.
+    Orminge"). The sheet then says the stops could not be found. Timetable rows do not
+    have this problem; name tricks have been exhausted.
 
 ## Conventions
 

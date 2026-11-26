@@ -41,6 +41,18 @@ export type Departure = {
    */
   journey?: Journey;
   terminusId?: string;
+  /** Departures from the timetable files know their trip: the sheet reads its stops there. */
+  trip?: TripRef;
+};
+
+/** Where a timetable departure's stops and times are: see `lib/timetable.ts`. */
+export type TripRef = {
+  version: string;
+  route: number;
+  pattern: number;
+  /** This station's place in the pattern. */
+  position: number;
+  profile: number;
 };
 
 export type Journey = {

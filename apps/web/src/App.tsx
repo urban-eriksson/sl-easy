@@ -10,11 +10,18 @@ import type { Mode, Station } from "@/lib/model";
 import { loadStations, type Stations } from "@/lib/stations";
 import { store } from "@/lib/store";
 import { formatClock } from "@/lib/time";
+import { mergeLive } from "@/lib/timetable";
 import { useDepartures } from "@/lib/use-departures";
 import { useDirect } from "@/lib/use-direct";
 import { useLocation } from "@/lib/use-location";
 import { useNav } from "@/lib/use-nav";
 import { useNow } from "@/lib/use-now";
+import { useTimetable } from "@/lib/use-timetable";
+
+/** Rows of the plain list added per page. */
+const PAGE = 60;
+/** Departures stay listed this long after they have left. */
+const GRACE_MS = 60_000;
 
 export function App() {
   const { view, cold, openStation, openRoot, openDeparture, setTowards, back } = useNav();
@@ -75,12 +82,24 @@ export function App() {
 
   const board = useDepartures(station?.id ?? null);
   const fresh = board.stationId === station?.id;
+  const haveLive = fresh && board.status === "ready";
   const all = fresh ? board.departures : [];
-  const live = useMemo(
-    () => (after === undefined ? all : all.filter((d) => d.expected >= after)),
-    [all, after],
+
+  // The plain list is the timetable with the live board laid on top. Without a
+  // timetable (none for this station, or it would not load) it is the board alone:
+  // three departures per line and direction.
+  const timetable = useTimetable(station?.id ?? null);
+  const timed = timetable.stationId === station?.id && timetable.status === "ready";
+  const full = useMemo(
+    () => (timed ? mergeLive(timetable.departures, all) : all),
+    [timed, timetable.departures, all],
   );
-  const modes = useMemo<Mode[]>(() => [...new Set(all.map((d) => d.line.mode))], [all]);
+  const from = after ?? now - GRACE_MS;
+  const plain = useMemo(() => full.filter((d) => d.expected >= from), [full, from]);
+  const [page, setPage] = useState({ of: station?.id, rows: PAGE });
+  const rows = page.of === station?.id ? page.rows : PAGE;
+
+  const modes = useMemo<Mode[]>(() => [...new Set(full.map((d) => d.line.mode))], [full]);
   const direct = useDirect(
     station?.id ?? null,
     towards?.id ?? null,
@@ -89,24 +108,50 @@ export function App() {
     stations,
     now,
   );
-  const shown = towards ? direct.departures : live;
+  const shown = useMemo(
+    () => (towards ? direct.departures : plain.slice(0, rows)),
+    [towards, direct.departures, plain, rows],
+  );
 
-  // Page in more while the end of a "till" list is on screen.
+  // Page in more while the end of the list is on screen: the next rows of the
+  // timetable (then its next day), or the next planner page of a "till" list.
   const sentinel = useRef<HTMLDivElement>(null);
   const { loadMore, refresh, loading: loadingMore, done: directDone } = direct;
+  const { more: nextDay, end: lastDay, days } = timetable;
+  const plainDone = !timed || (rows >= plain.length && lastDay);
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-observes after each page, so a still-visible end loads the next one
   useEffect(() => {
     const el = sentinel.current;
-    if (!el || !towards || directDone || loadingMore || !stations || modes.length === 0) return;
+    if (!el) return;
+    if (towards) {
+      if (directDone || loadingMore || !stations || modes.length === 0) return;
+    } else if (plainDone) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) loadMore();
+        if (!entries.some((e) => e.isIntersecting)) return;
+        if (towards) loadMore();
+        else if (rows < plain.length) setPage({ of: station?.id, rows: rows + PAGE });
+        else nextDay();
       },
       { rootMargin: "400px" },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [towards, directDone, loadingMore, loadMore, stations, modes, shown.length]);
+  }, [
+    towards,
+    directDone,
+    loadingMore,
+    loadMore,
+    stations,
+    modes,
+    shown.length,
+    plainDone,
+    rows,
+    plain.length,
+    days,
+    nextDay,
+    station,
+  ]);
 
   // The board refetches every 30 s; let the "till" list's live times follow it.
   const refreshDirect = useRef(refresh);
@@ -157,9 +202,9 @@ export function App() {
               </div>
             ) : null}
 
-            {!fresh || board.status === "loading" ? (
+            {!timed && !haveLive && (board.status !== "error" || timetable.status === "loading") ? (
               <p className="py-10 text-center text-muted-foreground">{t.list.loading}</p>
-            ) : board.status === "error" ? (
+            ) : !timed && !haveLive ? (
               <div className="py-10 text-center">
                 <p className="text-muted-foreground">
                   {board.problem === "busy" ? t.list.busy : t.list.failed}
@@ -174,9 +219,10 @@ export function App() {
               </div>
             ) : (
               <>
-                {board.problem ? (
+                {fresh && board.problem ? (
                   <p className="mb-2 text-sm text-late">
-                    {t.list.stale} · {board.problem === "busy" ? t.list.busy : t.list.failed}
+                    {haveLive ? t.list.stale : t.list.noLive} ·{" "}
+                    {board.problem === "busy" ? t.list.busy : t.list.failed}
                   </p>
                 ) : null}
                 {shown.length > 0 ? (
@@ -187,6 +233,10 @@ export function App() {
                       {t.list.noDirect(towards.name)}
                     </p>
                   ) : null
+                ) : timed ? (
+                  plainDone ? (
+                    <p className="py-10 text-center text-muted-foreground">{t.list.emptyWeek}</p>
+                  ) : null
                 ) : (
                   <p className="py-10 text-center text-muted-foreground">
                     {after === undefined ? t.list.empty : t.list.emptyAfter(formatClock(after))}
@@ -195,11 +245,15 @@ export function App() {
                 <div ref={sentinel} />
                 <p className="pt-5 text-center text-sm text-muted-foreground">
                   {!towards
-                    ? live.length > 0
-                      ? after === undefined
-                        ? t.list.scope
-                        : t.list.scopeAfter(formatClock(after))
-                      : null
+                    ? timed
+                      ? plainDone && shown.length > 0
+                        ? t.list.timetableEnd
+                        : null
+                      : shown.length > 0 && timetable.status === "missing"
+                        ? after === undefined
+                          ? t.list.scope
+                          : t.list.scopeAfter(formatClock(after))
+                        : null
                     : directDone
                       ? shown.length > 0
                         ? t.list.noMoreLater

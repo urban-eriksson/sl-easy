@@ -14,6 +14,8 @@ import {
 import type { Departure, Journey, Mode } from "./model";
 import { fetchTrips, findStopId } from "./sl";
 import type { Stations } from "./stations";
+import { tripJourney } from "./timetable";
+import { loadRoute } from "./timetable-source";
 
 /** How many stations with a matching name to try before asking the stop finder. */
 const MAX_CANDIDATES = 4;
@@ -91,6 +93,19 @@ export async function findJourney(
   stations: Stations,
   signal?: AbortSignal,
 ): Promise<Journey | null> {
+  const { trip } = departure;
+  if (trip) {
+    try {
+      const journey = tripJourney(
+        await loadRoute(trip.version, trip.route),
+        { ...departure, trip },
+        stations,
+      );
+      if (journey) return journey;
+    } catch {
+      // The timetable file is gone (a version replaced overnight): ask the planner instead.
+    }
+  }
   const target: Target = {
     stopAreaId: departure.stopAreaId,
     line: departure.line.designation,

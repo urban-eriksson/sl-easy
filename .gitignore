@@ -7,3 +7,4 @@
 .DS_Store
 infra/cdk.out/
 infra/cdk.context.json
+__pycache__/

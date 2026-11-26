@@ -29,6 +29,9 @@ export const t = {
   list: {
     loading: "Hämtar avgångar …",
     empty: "Inga avgångar de närmaste 20 timmarna",
+    emptyWeek: "Inga avgångar den närmaste veckan",
+    timetableEnd: "Tidtabellen sträcker sig inte längre än hit.",
+    noLive: "Visar tidtabellen utan realtid",
     failed: "Kunde inte hämta avgångarna.",
     busy: "SL:s tjänst svarar inte just nu. Försök igen om en stund.",
     retry: "Försök igen",
